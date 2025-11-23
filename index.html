@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" id="root-html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasiSawit</title> 
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    (function(){
+      try {
+        var saved = localStorage.getItem('theme');
+        var shouldDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (shouldDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  
+  <style>
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    /* FIX: Prevent horizontal scrolling/overflow */
+    body {
+      overflow-x: hidden;
+    }
+    .scroll-container {
+      overflow-y: auto;
+      will-change: transform;
+    }
+    .optimized-card {
+      contain: layout style paint;
+    }
+    .gpu-accelerated {
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="modal-root"></div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <script src="button_loading_utils.js?v=1.0"></script>
+  <script type="text/babel" src="translations.js?v=1.5"></script>
+  <script type="text/babel" src="date_picker.js?v=1.6"></script>
+  <script type="text/babel" src="view_components.js?v=1.5"></script>
+  <script type="text/babel" src="modal_components.js?v=1.5"></script>
+  <script type="text/babel" src="app_components.js?v=1.5"></script>
+  <script type="text/babel" src="app_logic.js?v=1.5"></script>
+
+</body>
+</html>

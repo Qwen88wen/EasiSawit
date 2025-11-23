@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\":*)",
+      "Bash(dir /b:*)",
+      "Bash(\"C:/xampp/php/php.exe\":*)",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root easisawit_db -e \"SELECT COUNT(*) as worker_count FROM workers WHERE status = ''Active'';\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root easisawit_db -e \"SELECT COUNT(*) as customer_count FROM customers;\")",
+      "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root easisawit_db -e \"SELECT COUNT(*) as worklog_count FROM work_logs;\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

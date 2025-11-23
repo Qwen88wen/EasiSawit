@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Management Dashboard - EasiSawit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body class="p-6">
+  <!-- Header -->
+  <div class="glass-card p-6 mb-6 animate-slide-in">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <svg class="w-12 h-12" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="45" fill="#10b981"/>
+          <g transform="translate(50, 50)">
+            <ellipse cx="0" cy="-15" rx="8" ry="20" fill="#059669"/>
+            <ellipse cx="-12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(-60)"/>
+            <ellipse cx="12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(60)"/>
+            <circle cx="0" cy="0" r="12" fill="#065f46"/>
+            <rect x="-3" y="0" width="6" height="30" fill="#92400e" rx="2"/>
+          </g>
+        </svg>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Management Dashboard</h1>
+          <p class="text-gray-600" id="currentPeriod">Loading...</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <select id="monthSelect" class="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <!-- Populated by JS -->
+        </select>
+        <select id="yearSelect" class="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <!-- Populated by JS -->
+        </select>
+        <button onclick="loadDashboardData()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
+          <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
+          Refresh
+        </button>
+        <button onclick="exportToExcel()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+          <i data-lucide="download" style="width: 18px; height: 18px;"></i>
+          Export Excel
+        </button>
+        <button onclick="window.location.href='index.html'" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition flex items-center gap-2">
+          <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
+          Back
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Metrics -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- Total Production -->
+    <div class="glass-card p-6 metric-card animate-slide-in" style="animation-delay: 0.1s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Total Production</p>
+          <p class="stat-number text-emerald-600" id="totalProduction">0</p>
+          <p class="text-gray-500 text-sm mt-1">tons</p>
+        </div>
+        <div class="p-3 bg-emerald-100 rounded-lg">
+          <i data-lucide="trending-up" style="width: 24px; height: 24px; color: #059669;"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-xs text-emerald-600 font-semibold" id="productionChange">+0%</span>
+        <span class="text-xs text-gray-500">vs last month</span>
+      </div>
+    </div>
+
+    <!-- Active Workers -->
+    <div class="glass-card p-6 metric-card animate-slide-in" style="animation-delay: 0.2s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Active Workers</p>
+          <p class="stat-number text-blue-600" id="activeWorkers">0</p>
+          <p class="text-gray-500 text-sm mt-1">employees</p>
+        </div>
+        <div class="p-3 bg-blue-100 rounded-lg">
+          <i data-lucide="users" style="width: 24px; height: 24px; color: #2563eb;"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-xs text-gray-500">Local: <span id="localWorkers" class="font-semibold">0</span></span>
+        <span class="text-xs text-gray-400">|</span>
+        <span class="text-xs text-gray-500">Foreign: <span id="foreignWorkers" class="font-semibold">0</span></span>
+      </div>
+    </div>
+
+    <!-- Total Revenue -->
+    <div class="glass-card p-6 metric-card animate-slide-in" style="animation-delay: 0.3s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Total Revenue</p>
+          <p class="stat-number text-purple-600" id="totalRevenue">RM 0</p>
+          <p class="text-gray-500 text-sm mt-1">gross income</p>
+        </div>
+        <div class="p-3 bg-purple-100 rounded-lg">
+          <i data-lucide="dollar-sign" style="width: 24px; height: 24px; color: #9333ea;"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-xs text-purple-600 font-semibold" id="revenueChange">+0%</span>
+        <span class="text-xs text-gray-500">vs last month</span>
+      </div>
+    </div>
+
+    <!-- Average Efficiency -->
+    <div class="glass-card p-6 metric-card animate-slide-in" style="animation-delay: 0.4s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Avg Efficiency</p>
+          <p class="stat-number text-orange-600" id="avgEfficiency">0</p>
+          <p class="text-gray-500 text-sm mt-1">tons/worker/day</p>
+        </div>
+        <div class="p-3 bg-orange-100 rounded-lg">
+          <i data-lucide="zap" style="width: 24px; height: 24px; color: #ea580c;"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-xs text-gray-500">Working days: <span id="workingDays" class="font-semibold">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Production Trend Chart -->
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.5s">
+      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <i data-lucide="line-chart" style="width: 20px; height: 20px;"></i>
+        Monthly Production Trend
+      </h3>
+      <div class="chart-container">
+        <canvas id="productionChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Worker Distribution Chart -->
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.6s">
+      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <i data-lucide="pie-chart" style="width: 20px; height: 20px;"></i>
+        Worker Type Distribution
+      </h3>
+      <div class="chart-container">
+        <canvas id="workerChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Performance Chart -->
+  <div class="glass-card p-6 mb-6 animate-slide-in" style="animation-delay: 0.7s">
+    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <i data-lucide="bar-chart-2" style="width: 20px; height: 20px;"></i>
+      Customer Performance (Top 10)
+    </h3>
+    <div style="height: 400px;">
+      <canvas id="customerChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top Performers Table -->
+  <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.8s">
+    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <i data-lucide="trophy" style="width: 20px; height: 20px;"></i>
+      Top 10 Performing Workers
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-gray-200">
+            <th class="text-left py-3 px-4 font-semibold text-gray-700">Rank</th>
+            <th class="text-left py-3 px-4 font-semibold text-gray-700">Worker Name</th>
+            <th class="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
+            <th class="text-right py-3 px-4 font-semibold text-gray-700">Total Tons</th>
+            <th class="text-right py-3 px-4 font-semibold text-gray-700">Days Worked</th>
+            <th class="text-right py-3 px-4 font-semibold text-gray-700">Avg/Day</th>
+            <th class="text-right py-3 px-4 font-semibold text-gray-700">Revenue Generated</th>
+          </tr>
+        </thead>
+        <tbody id="topWorkersTable">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // API URL
+    const API_URL = 'api';
+
+    // Global variables
+    let productionChart, workerChart, customerChart;
+    let dashboardData = {};
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeSelects();
+      loadDashboardData();
+      lucide.createIcons();
+    });
+
+    // Initialize month and year selects
+    function initializeSelects() {
+      const monthSelect = document.getElementById('monthSelect');
+      const yearSelect = document.getElementById('yearSelect');
+
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      // Populate months
+      months.forEach((month, index) => {
+        const option = document.createElement('option');
+        option.value = index + 1;
+        option.textContent = month;
+        if (index + 1 === currentMonth) option.selected = true;
+        monthSelect.appendChild(option);
+      });
+
+      // Populate years (last 5 years)
+      for (let i = 0; i < 5; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    }
+
+    // Load dashboard data
+    async function loadDashboardData() {
+      const month = document.getElementById('monthSelect').value;
+      const year = document.getElementById('yearSelect').value;
+
+      // Update current period display
+      const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
+      document.getElementById('currentPeriod').textContent = `${monthName} ${year}`;
+
+      try {
+        // Fetch all data in parallel
+        const [workers, workLogs, customers] = await Promise.all([
+          fetch(`${API_URL}/api_worker.php`).then(r => r.json()),
+          fetch(`${API_URL}/api_get_worklogs.php`).then(r => r.json()),
+          fetch(`${API_URL}/api_get_customer.php`).then(r => r.json())
+        ]);
+
+        // Filter work logs for selected month/year
+        const filteredLogs = workLogs.filter(log => {
+          const logDate = new Date(log.log_date);
+          return logDate.getMonth() + 1 == month && logDate.getFullYear() == year;
+        });
+
+        // Calculate metrics
+        calculateMetrics(workers, filteredLogs, customers);
+
+        // Render charts
+        renderCharts(workers, filteredLogs, customers);
+
+        // Render top workers table
+        renderTopWorkersTable(workers, filteredLogs);
+
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        alert('Failed to load dashboard data');
+      }
+    }
+
+    // Calculate metrics
+    function calculateMetrics(workers, workLogs, customers) {
+      // Total production
+      const totalProduction = workLogs.reduce((sum, log) => sum + parseFloat(log.tons || 0), 0);
+      document.getElementById('totalProduction').textContent = totalProduction.toFixed(2);
+
+      // Active workers
+      const activeWorkers = workers.filter(w => w.status === 'Active').length;
+      const localWorkers = workers.filter(w => w.status === 'Active' && w.type === 'Local').length;
+      const foreignWorkers = workers.filter(w => w.status === 'Active' && w.type === 'Foreign').length;
+
+      document.getElementById('activeWorkers').textContent = activeWorkers;
+      document.getElementById('localWorkers').textContent = localWorkers;
+      document.getElementById('foreignWorkers').textContent = foreignWorkers;
+
+      // Total revenue
+      const totalRevenue = workLogs.reduce((sum, log) => sum + (parseFloat(log.tons || 0) * parseFloat(log.rate_per_ton || 0)), 0);
+      document.getElementById('totalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+
+      // Working days (unique dates)
+      const uniqueDates = [...new Set(workLogs.map(log => log.log_date))];
+      const workingDays = uniqueDates.length;
+      document.getElementById('workingDays').textContent = workingDays;
+
+      // Average efficiency
+      const avgEfficiency = workingDays > 0 && activeWorkers > 0
+        ? (totalProduction / (workingDays * activeWorkers)).toFixed(2)
+        : 0;
+      document.getElementById('avgEfficiency').textContent = avgEfficiency;
+
+      // Calculate changes (mock for now)
+      document.getElementById('productionChange').textContent = '+12.5%';
+      document.getElementById('revenueChange').textContent = '+8.3%';
+    }
+
+    // Render charts
+    function renderCharts(workers, workLogs, customers) {
+      renderProductionChart(workLogs);
+      renderWorkerChart(workers);
+      renderCustomerChart(workLogs, customers);
+    }
+
+    // Production Trend Chart
+    function renderProductionChart(workLogs) {
+      const ctx = document.getElementById('productionChart').getContext('2d');
+
+      // Group by date
+      const dailyProduction = {};
+      workLogs.forEach(log => {
+        const date = log.log_date;
+        if (!dailyProduction[date]) dailyProduction[date] = 0;
+        dailyProduction[date] += parseFloat(log.tons || 0);
+      });
+
+      const sortedDates = Object.keys(dailyProduction).sort();
+      const productions = sortedDates.map(date => dailyProduction[date]);
+
+      if (productionChart) productionChart.destroy();
+
+      productionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: sortedDates.map(d => new Date(d).getDate()),
+          datasets: [{
+            label: 'Daily Production (tons)',
+            data: productions,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // Worker Distribution Chart
+    function renderWorkerChart(workers) {
+      const ctx = document.getElementById('workerChart').getContext('2d');
+
+      const activeWorkers = workers.filter(w => w.status === 'Active');
+      const local = activeWorkers.filter(w => w.type === 'Local').length;
+      const foreign = activeWorkers.filter(w => w.type === 'Foreign').length;
+
+      if (workerChart) workerChart.destroy();
+
+      workerChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Local Workers', 'Foreign Workers'],
+          datasets: [{
+            data: [local, foreign],
+            backgroundColor: ['#10b981', '#f59e0b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    // Customer Performance Chart
+    function renderCustomerChart(workLogs, customers) {
+      const ctx = document.getElementById('customerChart').getContext('2d');
+
+      // Calculate customer performance
+      const customerPerformance = {};
+      workLogs.forEach(log => {
+        const customerId = log.customer_id;
+        if (!customerPerformance[customerId]) {
+          customerPerformance[customerId] = {
+            name: log.customer_name,
+            tons: 0,
+            revenue: 0
+          };
+        }
+        customerPerformance[customerId].tons += parseFloat(log.tons || 0);
+        customerPerformance[customerId].revenue += parseFloat(log.tons || 0) * parseFloat(log.rate_per_ton || 0);
+      });
+
+      // Get top 10
+      const sorted = Object.values(customerPerformance)
+        .sort((a, b) => b.tons - a.tons)
+        .slice(0, 10);
+
+      if (customerChart) customerChart.destroy();
+
+      customerChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(c => c.name),
+          datasets: [{
+            label: 'Total Tons',
+            data: sorted.map(c => c.tons),
+            backgroundColor: '#8b5cf6',
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // Render top workers table
+    function renderTopWorkersTable(workers, workLogs) {
+      // Calculate worker performance
+      const workerPerformance = {};
+      workLogs.forEach(log => {
+        const workerId = log.worker_id;
+        if (!workerPerformance[workerId]) {
+          const worker = workers.find(w => w.id == workerId);
+          workerPerformance[workerId] = {
+            name: log.worker_name,
+            type: worker ? worker.type : 'Unknown',
+            tons: 0,
+            days: new Set(),
+            revenue: 0
+          };
+        }
+        workerPerformance[workerId].tons += parseFloat(log.tons || 0);
+        workerPerformance[workerId].days.add(log.log_date);
+        workerPerformance[workerId].revenue += parseFloat(log.tons || 0) * parseFloat(log.rate_per_ton || 0);
+      });
+
+      // Convert to array and sort
+      const sorted = Object.entries(workerPerformance)
+        .map(([id, data]) => ({
+          ...data,
+          daysWorked: data.days.size,
+          avgPerDay: data.tons / data.days.size
+        }))
+        .sort((a, b) => b.tons - a.tons)
+        .slice(0, 10);
+
+      // Render table
+      const tbody = document.getElementById('topWorkersTable');
+      tbody.innerHTML = sorted.map((worker, index) => `
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-2">
+              ${index < 3 ? `<i data-lucide="trophy" style="width: 16px; height: 16px; color: ${['#FFD700', '#C0C0C0', '#CD7F32'][index]};"></i>` : ''}
+              <span class="font-semibold">#${index + 1}</span>
+            </div>
+          </td>
+          <td class="py-3 px-4 font-medium">${worker.name}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-1 rounded-full text-xs font-semibold ${worker.type === 'Local' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+              ${worker.type}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right font-semibold text-emerald-600">${worker.tons.toFixed(2)}</td>
+          <td class="py-3 px-4 text-right">${worker.daysWorked}</td>
+          <td class="py-3 px-4 text-right">${worker.avgPerDay.toFixed(2)}</td>
+          <td class="py-3 px-4 text-right font-semibold">RM ${worker.revenue.toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // Export to Excel (placeholder)
+    function exportToExcel() {
+      alert('Excel export feature will be implemented with a library like SheetJS');
+    }
+  </script>
+</body>
+</html>

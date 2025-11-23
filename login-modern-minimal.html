@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login - EasiSawit (Modern Minimal)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+        font-family: 'Inter', sans-serif;
+      }
+
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .login-container {
+        width: 100%;
+        max-width: 440px;
+      }
+
+      .login-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 48px 40px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05),
+                    0 10px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+      }
+
+      .login-card:hover {
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08),
+                    0 16px 24px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .logo-container {
+        text-align: center;
+        margin-bottom: 36px;
+      }
+
+      .logo {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+      }
+
+      .logo-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a4731;
+        margin-bottom: 8px;
+      }
+
+      .logo-subtitle {
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .company-info {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 8px;
+        line-height: 1.5;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #334155;
+        margin-bottom: 8px;
+      }
+
+      .input-wrapper {
+        position: relative;
+      }
+
+      .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px 14px 12px 44px;
+        font-size: 15px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        background: #f8fafc;
+        color: #1e293b;
+        transition: all 0.2s ease;
+        font-family: 'Inter', sans-serif;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: #2c5e50;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(44, 94, 80, 0.1);
+      }
+
+      .form-input::placeholder {
+        color: #cbd5e1;
+      }
+
+      .remember-forgot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 24px;
+      }
+
+      .remember-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #475569;
+        cursor: pointer;
+      }
+
+      .remember-checkbox {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #2c5e50;
+      }
+
+      .forgot-link {
+        color: #2c5e50;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+      }
+
+      .forgot-link:hover {
+        color: #1a4731;
+      }
+
+      .submit-button {
+        width: 100%;
+        padding: 14px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #ffffff;
+        background: linear-gradient(135deg, #2c5e50 0%, #1a4731 100%);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(44, 94, 80, 0.2);
+      }
+
+      .submit-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(44, 94, 80, 0.3);
+      }
+
+      .submit-button:active {
+        transform: translateY(0);
+      }
+
+      .register-link-container {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 14px;
+        color: #64748b;
+      }
+
+      .register-link {
+        color: #2c5e50;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+      }
+
+      .register-link:hover {
+        color: #1a4731;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+
+      .message-box {
+        margin-bottom: 20px;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .message-success {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+
+      .message-error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+    <script>
+      if (sessionStorage.getItem("isLoggedIn") === "true") {
+        window.location.href = "index.html";
+      }
+    </script>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="logo-container">
+          <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="45" fill="#2c5e50"/>
+            <g transform="translate(50, 50)">
+              <ellipse cx="0" cy="-15" rx="8" ry="20" fill="#d4af37"/>
+              <ellipse cx="-12" cy="-8" rx="8" ry="20" fill="#d4af37" transform="rotate(-60)"/>
+              <ellipse cx="12" cy="-8" rx="8" ry="20" fill="#d4af37" transform="rotate(60)"/>
+              <ellipse cx="-15" cy="5" rx="8" ry="20" fill="#f0c14b" transform="rotate(-120)"/>
+              <ellipse cx="15" cy="5" rx="8" ry="20" fill="#f0c14b" transform="rotate(120)"/>
+              <ellipse cx="-8" cy="15" rx="8" ry="18" fill="#f0c14b" transform="rotate(-180)"/>
+              <ellipse cx="8" cy="15" rx="8" ry="18" fill="#f0c14b" transform="rotate(180)"/>
+              <circle cx="0" cy="0" r="12" fill="#1a4731"/>
+              <rect x="-3" y="0" width="6" height="30" fill="#8B4513" rx="2"/>
+            </g>
+          </svg>
+          <h1 class="logo-title">EasiSawit</h1>
+          <p class="logo-subtitle">Admin Portal</p>
+          <div class="company-info">
+            <p>632236-X | No.Lesen MPOB: 446276-029888</p>
+            <p>Tel: 019-9988273</p>
+          </div>
+        </div>
+
+        <form id="loginForm">
+          <div id="messageDiv" class="message-box hidden"></div>
+
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <div class="input-wrapper">
+              <i data-lucide="user" class="input-icon" style="width: 18px; height: 18px;"></i>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                required
+                class="form-input"
+                placeholder="Enter your username"
+                autocomplete="username"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrapper">
+              <i data-lucide="lock" class="input-icon" style="width: 18px; height: 18px;"></i>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                class="form-input"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+              />
+            </div>
+          </div>
+
+          <div class="remember-forgot">
+            <label class="remember-label">
+              <input type="checkbox" id="remember" class="remember-checkbox" />
+              <span>Remember me</span>
+            </label>
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+
+          <button type="submit" id="submitBtn" class="submit-button">
+            <span>Sign In</span>
+            <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
+          </button>
+        </form>
+
+        <div class="register-link-container">
+          Not an admin? <a href="register.html" class="register-link">Register as Customer</a>
+        </div>
+      </div>
+
+      <div class="footer">
+        © 2025 EasiSawit. All rights reserved.
+      </div>
+    </div>
+
+    <script>
+      document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const submitBtn = document.getElementById("submitBtn");
+        const messageDiv = document.getElementById("messageDiv");
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width: 18px; height: 18px;"></i> <span>Signing in...</span>';
+        lucide.createIcons();
+
+        try {
+          const response = await fetch("api/api_login.php", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username: username,
+              password: password,
+            }),
+          });
+
+          const result = await response.json();
+          messageDiv.classList.remove("hidden");
+
+          if (response.ok) {
+            messageDiv.className = "message-box message-success";
+            messageDiv.innerHTML = `<strong>Success!</strong> Welcome back, ${result.full_name}!`;
+
+            sessionStorage.setItem("isLoggedIn", "true");
+            sessionStorage.setItem("username", result.username);
+            sessionStorage.setItem("fullName", result.full_name);
+
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 1500);
+          } else {
+            messageDiv.className = "message-box message-error";
+            messageDiv.innerHTML = `<strong>Error:</strong> ${result.message}`;
+          }
+        } catch (error) {
+          messageDiv.classList.remove("hidden");
+          messageDiv.className = "message-box message-error";
+          messageDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Sign In</span><i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>';
+          lucide.createIcons();
+        }
+      });
+
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

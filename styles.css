@@ -1,0 +1,94 @@
+html, body {
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden; 
+}
+
+body {
+    background: linear-gradient(135deg, #0d3b2f 0%, #1a5c47 30%, #2d7a5f 60%, #d4af37 100%) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    font-family: 'Inter', sans-serif;
+    color: #ffffff !important;
+    width: 100%;
+}
+
+
+.glass-card {
+    max-width: 500px !important;
+    width: 90% !important;
+    padding: 50px 40px !important;
+
+    background: rgba(255, 255, 255, 0.1) !important; /* 10%透明度白色 */
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    
+    border: 1px solid rgba(212, 175, 55, 0.4) !important;
+    border-radius: 24px !important;
+    
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+    
+    text-align: center !important;
+    position: relative !important;
+    z-index: 10;
+}
+
+.glass-input {
+    background: rgba(255, 255, 255, 0.95) !important; 
+    color: #064e3b !important; 
+    padding: 16px 20px !important;
+    padding-left: 48px !important; 
+    font-size: 1rem !important;
+    border-radius: 12px !important;
+    border: 2px solid transparent !important;
+    transition: all 0.2s ease-in-out;
+    box-sizing: border-box !important;
+}
+
+.glass-input::placeholder {
+    color: #6b7280 !important;
+    opacity: 1;
+}
+
+.glass-input:focus {
+    background: #ffffff !important;
+    border-color: #d4af37 !important; 
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.2) !important;
+    outline: none;
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #d4af37 0%, #b4941f 100%) !important;
+    color: #ffffff !important;
+    padding: 16px !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4) !important;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5) !important;
+}
+
+.company-details {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 0.75rem;
+    line-height: 1.6;
+}
+
+.bg-circle { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: float 20s ease-in-out infinite; z-index: 0; }
+.circle-1 { width: 500px; height: 500px; background: rgba(212, 175, 55, 0.2); top: -10%; left: -10%; }
+.circle-2 { width: 400px; height: 400px; background: rgba(44, 94, 80, 0.3); bottom: -10%; right: -10%; animation-delay: 5s; }
+@keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -30px); } }
