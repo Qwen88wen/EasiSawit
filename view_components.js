@@ -1144,23 +1144,20 @@ const PayrollView = React.memo(
                 </button>
 
                 <button
-                  onClick={async (e) => {
-                    const loadingState = window.setButtonLoading && e.currentTarget
-                      ? window.setButtonLoading(e.currentTarget, "Generating...")
-                      : null;
-                    try {
-                      await handleGenerateManagementReport();
-                    } finally {
-                      if (loadingState) loadingState.reset();
-                    }
+                  onClick={() => {
+                    window.open('management_dashboard.html', '_blank');
                   }}
-                  className="flex items-center justify-center space-x-2 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition"
+                  className="flex items-center justify-center space-x-2 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-all shadow-md hover:shadow-lg"
                 >
                   <i
-                    data-lucide="file-text"
+                    data-lucide="bar-chart-2"
                     style={{ width: 20, height: 20 }}
                   ></i>
                   <span>{t_view.managementReport}</span>
+                  <i
+                    data-lucide="external-link"
+                    style={{ width: 16, height: 16 }}
+                  ></i>
                 </button>
               </div>
             </div>
@@ -2003,6 +2000,288 @@ const ManagementReportView = React.memo(({ t, theme, workers, customers, workLog
   );
 });
 
+// --- Applications View Component ---
+const ApplicationsView = memo(({ t, theme }) => {
+  const [applications, setApplications] = useState([]);
+  const [currentFilter, setCurrentFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const loadApplications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('api/api_get_all_customers.php?_=' + new Date().getTime());
+      if (!response.ok) throw new Error('Failed to fetch applications');
+      const data = await response.json();
+      setApplications(data.customers || []);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+      alert('Error loading applications: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadApplications();
+  }, [loadApplications]);
+
+  const statistics = useMemo(() => {
+    const total = applications.length;
+    const pending = applications.filter(app => app.status === 'Pending').length;
+    const approved = applications.filter(app => app.status === 'Active').length;
+    const rejected = applications.filter(app => app.status === 'Rejected').length;
+    return { total, pending, approved, rejected };
+  }, [applications]);
+
+  const filteredApps = useMemo(() => {
+    if (currentFilter === 'all') return applications;
+    return applications.filter(app => app.status === currentFilter);
+  }, [applications, currentFilter]);
+
+  const handleUpdateStatus = useCallback(async (id, newStatus) => {
+    if (!confirm(`Are you sure you want to ${newStatus === 'Active' ? 'approve' : 'reject'} this application?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('api/api_update_customer_status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus })
+      });
+
+      if (!response.ok) throw new Error('Failed to update status');
+      const result = await response.json();
+      alert(result.message || 'Status updated successfully!');
+
+      setShowModal(false);
+      setSelectedApp(null);
+      loadApplications();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Error updating status: ' + error.message);
+    }
+  }, [loadApplications]);
+
+  const getStatusBadgeClass = (status) => {
+    if (status === 'Pending') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'Active') return 'bg-green-100 text-green-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  return (
+    <div className={`${theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'}`}>
+      {/* Header */}
+      <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6 mb-6`}>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+              Customer Applications
+            </h2>
+            <p className={`mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+              Manage customer registration requests
+            </p>
+          </div>
+          <button
+            onClick={loadApplications}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2"
+          >
+            <i data-lucide="refresh-cw" style={{ width: 18, height: 18 }}></i>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6 mb-6`}>
+        <div className="flex gap-4 flex-wrap">
+          {[
+            { key: 'all', label: 'All Applications' },
+            { key: 'Pending', label: 'Pending' },
+            { key: 'Active', label: 'Approved' },
+            { key: 'Rejected', label: 'Rejected' }
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setCurrentFilter(key)}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                currentFilter === key
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : theme === 'light'
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        {[
+          { label: 'Total Applications', value: statistics.total, color: 'blue', icon: 'users' },
+          { label: 'Pending Review', value: statistics.pending, color: 'yellow', icon: 'clock' },
+          { label: 'Approved', value: statistics.approved, color: 'green', icon: 'check-circle' },
+          { label: 'Rejected', value: statistics.rejected, color: 'red', icon: 'x-circle' }
+        ].map(({ label, value, color, icon }) => (
+          <div key={label} className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className={`text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{label}</p>
+                <p className={`text-3xl font-bold text-${color}-600`}>{value}</p>
+              </div>
+              <div className={`p-3 bg-${color}-100 rounded-lg`}>
+                <i data-lucide={icon} style={{ width: 24, height: 24, color: `var(--${color}-600)` }}></i>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Applications List */}
+      <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6`}>
+        <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+          <i data-lucide="inbox" style={{ width: 24, height: 24 }}></i>
+          Applications List
+        </h3>
+
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className={`h-20 rounded-lg ${theme === 'light' ? 'bg-gray-200' : 'bg-gray-700'} animate-pulse`}></div>
+            ))}
+          </div>
+        ) : filteredApps.length === 0 ? (
+          <div className="text-center py-12">
+            <i data-lucide="inbox" style={{ width: 64, height: 64, color: '#9ca3af', margin: '0 auto 16px' }}></i>
+            <p className={`text-lg ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>No applications found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredApps.map(app => (
+              <div
+                key={app.id}
+                onClick={() => { setSelectedApp(app); setShowModal(true); }}
+                className={`${theme === 'light' ? 'bg-gray-50 hover:bg-gray-100' : 'bg-gray-700 hover:bg-gray-600'} rounded-lg p-6 cursor-pointer transition shadow hover:shadow-lg`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h4 className={`text-lg font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{app.name}</h4>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(app.status)}`}>
+                    {app.status}
+                  </span>
+                </div>
+
+                <div className={`space-y-2 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                  <div className="flex items-center gap-2">
+                    <i data-lucide="mail" style={{ width: 16, height: 16 }}></i>
+                    <span>{app.email || 'No email'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i data-lucide="phone" style={{ width: 16, height: 16 }}></i>
+                    <span>{app.contact || 'No contact'}</span>
+                  </div>
+                  {app.location && (
+                    <div className="flex items-center gap-2">
+                      <i data-lucide="map-pin" style={{ width: 16, height: 16 }}></i>
+                      <span>{app.location}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`mt-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-600'} text-xs ${theme === 'light' ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Applied: {new Date(app.created_at).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Detail Modal */}
+      {showModal && selectedApp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+          <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Application Details</h3>
+                <button onClick={() => setShowModal(false)} className={`${theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'} transition`}>
+                  <i data-lucide="x" style={{ width: 24, height: 24 }}></i>
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Status</label>
+                  <div className="mt-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(selectedApp.status)}`}>
+                      {selectedApp.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Full Name</label>
+                  <p className={`mt-1 text-lg font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.name}</p>
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Email Address</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.email || 'Not provided'}</p>
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Contact Number</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.contact || 'Not provided'}</p>
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Location</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.location || 'Not provided'}</p>
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Application Date</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{new Date(selectedApp.created_at).toLocaleString()}</p>
+                </div>
+
+                {selectedApp.updated_at && selectedApp.updated_at !== selectedApp.created_at && (
+                  <div>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Last Updated</label>
+                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{new Date(selectedApp.updated_at).toLocaleString()}</p>
+                  </div>
+                )}
+
+                {selectedApp.status === 'Pending' && (
+                  <div className={`flex gap-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
+                    <button
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Active')}
+                      className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2"
+                    >
+                      <i data-lucide="check" style={{ width: 20, height: 20 }}></i>
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Rejected')}
+                      className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2"
+                    >
+                      <i data-lucide="x" style={{ width: 20, height: 20 }}></i>
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
 // --- Assign components to window object ---
 // This makes them accessible to app_logic.js
 window.DashboardView = DashboardView;
@@ -2010,6 +2289,7 @@ window.WorkersView = WorkersView;
 window.CustomersView = CustomersView;
 window.PayrollView = PayrollView;
 window.WorkLogsView = WorkLogsView;
+window.ApplicationsView = ApplicationsView;
 window.ManagementReportView = ManagementReportView;
 
 window.StatCard = StatCard;

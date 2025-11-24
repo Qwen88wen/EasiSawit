@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Applications - EasiSawit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script>
+    // Access Control: Check if user is logged in via API
+    async function checkAuth() {
+      try {
+        const response = await fetch('api/check_auth.php', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok && response.status === 401) {
+          alert("Access denied. Please login first.");
+          window.location.href = "login.html";
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+        // Continue anyway - let the API calls handle auth
+      }
+    }
+
+    // Run auth check
+    checkAuth();
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .application-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .application-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-approved {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-active {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body class="p-6">
+  <!-- Header -->
+  <div class="glass-card p-6 mb-6 animate-slide-in">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <svg class="w-12 h-12" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="45" fill="#10b981"/>
+          <g transform="translate(50, 50)">
+            <ellipse cx="0" cy="-15" rx="8" ry="20" fill="#059669"/>
+            <ellipse cx="-12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(-60)"/>
+            <ellipse cx="12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(60)"/>
+            <circle cx="0" cy="0" r="12" fill="#065f46"/>
+            <rect x="-3" y="0" width="6" height="30" fill="#92400e" rx="2"/>
+          </g>
+        </svg>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Customer Applications</h1>
+          <p class="text-gray-600" id="subtitle">Manage customer registration requests</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="loadApplications()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
+          <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
+          Refresh
+        </button>
+        <button onclick="window.location.href='index.html'" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition flex items-center gap-2">
+          <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
+          Back
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="glass-card p-6 mb-6 animate-slide-in" style="animation-delay: 0.1s">
+    <div class="flex gap-4">
+      <button onclick="filterApplications('all')" id="filter-all" class="px-6 py-2 rounded-lg font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition">
+        All Applications
+      </button>
+      <button onclick="filterApplications('pending')" id="filter-pending" class="px-6 py-2 rounded-lg font-semibold bg-white text-gray-700 hover:bg-gray-100 transition">
+        Pending
+      </button>
+      <button onclick="filterApplications('approved')" id="filter-approved" class="px-6 py-2 rounded-lg font-semibold bg-white text-gray-700 hover:bg-gray-100 transition">
+        Approved
+      </button>
+      <button onclick="filterApplications('rejected')" id="filter-rejected" class="px-6 py-2 rounded-lg font-semibold bg-white text-gray-700 hover:bg-gray-100 transition">
+        Rejected
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.2s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Total Applications</p>
+          <p class="text-3xl font-bold text-gray-900" id="totalCount">0</p>
+        </div>
+        <div class="p-3 bg-blue-100 rounded-lg">
+          <i data-lucide="users" style="width: 24px; height: 24px; color: #2563eb;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.3s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Pending Review</p>
+          <p class="text-3xl font-bold text-yellow-600" id="pendingCount">0</p>
+        </div>
+        <div class="p-3 bg-yellow-100 rounded-lg">
+          <i data-lucide="clock" style="width: 24px; height: 24px; color: #ca8a04;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.4s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Approved</p>
+          <p class="text-3xl font-bold text-green-600" id="approvedCount">0</p>
+        </div>
+        <div class="p-3 bg-green-100 rounded-lg">
+          <i data-lucide="check-circle" style="width: 24px; height: 24px; color: #16a34a;"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.5s">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-gray-600 text-sm font-medium mb-2">Rejected</p>
+          <p class="text-3xl font-bold text-red-600" id="rejectedCount">0</p>
+        </div>
+        <div class="p-3 bg-red-100 rounded-lg">
+          <i data-lucide="x-circle" style="width: 24px; height: 24px; color: #dc2626;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Applications List -->
+  <div class="glass-card p-6 animate-slide-in" style="animation-delay: 0.6s">
+    <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+      <i data-lucide="inbox" style="width: 24px; height: 24px;"></i>
+      Applications List
+    </h3>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="space-y-4">
+      <div class="skeleton h-20"></div>
+      <div class="skeleton h-20"></div>
+      <div class="skeleton h-20"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12">
+      <i data-lucide="inbox" style="width: 64px; height: 64px; color: #9ca3af; margin: 0 auto 16px;"></i>
+      <p class="text-gray-500 text-lg">No applications found</p>
+    </div>
+
+    <!-- Applications Grid -->
+    <div id="applicationsContainer" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Applications will be inserted here -->
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content fade-in">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-6">
+          <h3 class="text-2xl font-bold text-gray-900">Application Details</h3>
+          <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+            <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+          </button>
+        </div>
+
+        <div id="modalContent">
+          <!-- Details will be inserted here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allApplications = [];
+    let currentFilter = 'all';
+
+    // Load applications from API
+    async function loadApplications() {
+      const loadingState = document.getElementById('loadingState');
+      const emptyState = document.getElementById('emptyState');
+      const container = document.getElementById('applicationsContainer');
+
+      loadingState.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+      container.classList.add('hidden');
+
+      try {
+        const response = await fetch('api/api_get_customer_applications.php');
+        if (!response.ok) throw new Error('Failed to fetch applications');
+
+        const data = await response.json();
+        allApplications = data.applications || [];
+
+        updateStatistics();
+        filterApplications(currentFilter);
+
+        loadingState.classList.add('hidden');
+      } catch (error) {
+        console.error('Error loading applications:', error);
+        loadingState.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        alert('Error loading applications: ' + error.message);
+      }
+    }
+
+    // Update statistics
+    function updateStatistics() {
+      const total = allApplications.length;
+      const pending = allApplications.filter(app => app.status === 'pending').length;
+      const approved = allApplications.filter(app => app.status === 'approved').length;
+      const rejected = allApplications.filter(app => app.status === 'rejected').length;
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('approvedCount').textContent = approved;
+      document.getElementById('rejectedCount').textContent = rejected;
+    }
+
+    // Filter applications
+    function filterApplications(status) {
+      currentFilter = status;
+
+      // Update button styles
+      document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+        btn.className = 'px-6 py-2 rounded-lg font-semibold bg-white text-gray-700 hover:bg-gray-100 transition';
+      });
+      document.getElementById(`filter-${status}`).className = 'px-6 py-2 rounded-lg font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition';
+
+      // Filter data
+      let filtered = allApplications;
+      if (status !== 'all') {
+        filtered = allApplications.filter(app => app.status === status);
+      }
+
+      displayApplications(filtered);
+    }
+
+    // Display applications
+    function displayApplications(applications) {
+      const container = document.getElementById('applicationsContainer');
+      const emptyState = document.getElementById('emptyState');
+
+      if (applications.length === 0) {
+        container.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.classList.remove('hidden');
+
+      container.innerHTML = applications.map(app => `
+        <div class="application-card glass-card p-6" onclick="showDetails(${app.id})">
+          <div class="flex justify-between items-start mb-4">
+            <h4 class="text-lg font-bold text-gray-900">${app.name}</h4>
+            <span class="badge badge-${app.status.toLowerCase()}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span>
+          </div>
+
+          <div class="space-y-2 text-sm text-gray-600">
+            <div class="flex items-center gap-2">
+              <i data-lucide="mail" style="width: 16px; height: 16px;"></i>
+              <span>${app.email || 'No email'}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="phone" style="width: 16px; height: 16px;"></i>
+              <span>${app.contact || 'No contact'}</span>
+            </div>
+            ${app.company_name ? `
+            <div class="flex items-center gap-2">
+              <i data-lucide="building" style="width: 16px; height: 16px;"></i>
+              <span>${app.company_name}</span>
+            </div>
+            ` : ''}
+            ${app.rate_requested ? `
+            <div class="flex items-center gap-2">
+              <i data-lucide="dollar-sign" style="width: 16px; height: 16px;"></i>
+              <span>RM ${parseFloat(app.rate_requested).toFixed(2)}/ton</span>
+            </div>
+            ` : ''}
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500">
+            Applied: ${new Date(app.submitted_at).toLocaleDateString()}
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // Show application details
+    function showDetails(id) {
+      const app = allApplications.find(a => a.id === id);
+      if (!app) return;
+
+      const modalContent = document.getElementById('modalContent');
+      modalContent.innerHTML = `
+        <div class="space-y-6">
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Status</label>
+            <div class="mt-2">
+              <span class="badge badge-${app.status.toLowerCase()}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Full Name</label>
+            <p class="mt-1 text-lg font-medium text-gray-900">${app.name}</p>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Email Address</label>
+            <p class="mt-1 text-gray-900">${app.email || 'Not provided'}</p>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Contact Number</label>
+            <p class="mt-1 text-gray-900">${app.contact || 'Not provided'}</p>
+          </div>
+
+          ${app.company_name ? `
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Company Name</label>
+            <p class="mt-1 text-gray-900">${app.company_name}</p>
+          </div>
+          ` : ''}
+
+          ${app.rate_requested ? `
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Requested Rate</label>
+            <p class="mt-1 text-gray-900">RM ${parseFloat(app.rate_requested).toFixed(2)} per ton</p>
+          </div>
+          ` : ''}
+
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Application Date</label>
+            <p class="mt-1 text-gray-900">${new Date(app.submitted_at).toLocaleString()}</p>
+          </div>
+
+          ${app.reviewed_at ? `
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Reviewed At</label>
+            <p class="mt-1 text-gray-900">${new Date(app.reviewed_at).toLocaleString()}</p>
+          </div>
+          ` : ''}
+
+          ${app.reviewed_by ? `
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Reviewed By</label>
+            <p class="mt-1 text-gray-900">${app.reviewed_by}</p>
+          </div>
+          ` : ''}
+
+          ${app.rejection_reason ? `
+          <div>
+            <label class="text-sm font-semibold text-gray-600">Rejection Reason</label>
+            <p class="mt-1 text-gray-900">${app.rejection_reason}</p>
+          </div>
+          ` : ''}
+
+          ${app.status === 'pending' ? `
+          <div class="flex gap-4 pt-4 border-t border-gray-200">
+            <button onclick="updateStatus(${app.id}, 'Active')" class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="check" style="width: 20px; height: 20px;"></i>
+              Approve
+            </button>
+            <button onclick="updateStatus(${app.id}, 'Rejected')" class="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2">
+              <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+              Reject
+            </button>
+          </div>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('detailModal').classList.add('active');
+      lucide.createIcons();
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('detailModal').classList.remove('active');
+    }
+
+    // Update application status
+    async function updateStatus(id, newStatus) {
+      const isApprove = newStatus === 'Active';
+      if (!confirm(`Are you sure you want to ${isApprove ? 'approve' : 'reject'} this application?`)) {
+        return;
+      }
+
+      // Get rejection reason if rejecting
+      let rejectionReason = null;
+      if (!isApprove) {
+        rejectionReason = prompt('Please provide a reason for rejection (optional):');
+      }
+
+      try {
+        // Use different APIs for approve vs reject
+        const apiUrl = isApprove ? 'api/api_approve_application.php' : 'api/api_reject_application.php';
+        const requestBody = isApprove
+          ? { application_id: id }
+          : { application_id: id, rejection_reason: rejectionReason };
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update status');
+        }
+
+        const result = await response.json();
+        alert(result.message || 'Status updated successfully!');
+
+        closeModal();
+        loadApplications();
+      } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Error updating status: ' + error.message);
+      }
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+
+    // Initialize
+    lucide.createIcons();
+    loadApplications();
+  </script>
+</body>
+</html>

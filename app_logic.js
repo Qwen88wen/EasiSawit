@@ -313,6 +313,15 @@ const Sidebar = memo(
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
             />
+            <SidebarItem
+              t={t}
+              theme={theme}
+              icon="inbox"
+              tab="applications"
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              sidebarOpen={sidebarOpen}
+            />
           </div>
         </div>
       </aside>
@@ -1328,6 +1337,7 @@ const EasiSawit = ({ translations }) => {
         "worklogs",
         "customers",
         "payroll",
+        "applications",
       ];
       const currentTab = tab && validTabs.includes(tab) ? tab : "dashboard";
 
@@ -1617,6 +1627,12 @@ const EasiSawit = ({ translations }) => {
               handleGenerateManagementReport={handleGenerateManagementReport}
               payrollSummary={payrollSummary}
               currentRunId={currentRunId}
+            />
+          )}
+          {activeTab === "applications" && window.ApplicationsView && (
+            <window.ApplicationsView
+              t={t}
+              theme={theme}
             />
           )}
           {activeTab === "reports" && window.ManagementReportView && (

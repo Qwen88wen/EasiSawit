@@ -7,6 +7,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Access Control: Check if user is logged in
+    if (!sessionStorage.getItem("isLoggedIn") || sessionStorage.getItem("isLoggedIn") !== "true") {
+      alert("Access denied. Please login first.");
+      window.location.href = "login.html";
+    }
+  </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -103,10 +110,6 @@
         <button onclick="loadDashboardData()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
           <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
           Refresh
-        </button>
-        <button onclick="exportToExcel()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
-          <i data-lucide="download" style="width: 18px; height: 18px;"></i>
-          Export Excel
         </button>
         <button onclick="window.location.href='index.html'" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition flex items-center gap-2">
           <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>

@@ -64,6 +64,20 @@ const Sidebar = memo(({ t, theme, activeTab, setActiveTab, sidebarOpen, setSideb
         <SidebarItem t={t} theme={theme} activeTab={activeTab} setActiveTab={setActiveTab} icon="dollar-sign" tab="customers" sidebarOpen={sidebarOpen} />
         <SidebarItem t={t} theme={theme} activeTab={activeTab} setActiveTab={setActiveTab} icon="calendar" tab="payroll" sidebarOpen={sidebarOpen} />
         <SidebarItem t={t} theme={theme} activeTab={activeTab} setActiveTab={setActiveTab} icon="bar-chart-2" tab="reports" sidebarOpen={sidebarOpen} />
+
+        {/* External Link to Customer Applications */}
+        <a
+          href="customer_applications.html"
+          target="_blank"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+            theme === 'light' ? 'hover:bg-gray-100' : 'hover:bg-gray-700'
+          }`}
+          title={sidebarOpen ? "Customer Applications" : "Customer Applications"}
+        >
+          <i data-lucide="inbox" style={{width: 24, height: 24, color: theme === 'light' ? '#6b7280' : '#9ca3af'}}></i>
+          {sidebarOpen && <span className="font-medium" style={{color: theme === 'light' ? '#374151' : '#e5e7eb'}}>Applications</span>}
+        </a>
+
         <SidebarItem t={t} theme={theme} activeTab={activeTab} setActiveTab={setActiveTab} icon="settings" tab="settings" sidebarOpen={sidebarOpen} />
       </div>
     </div>
