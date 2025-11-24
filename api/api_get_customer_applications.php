@@ -48,7 +48,7 @@ $status_filter = isset($_GET['status']) ? $_GET['status'] : null;
 
 // Build query
 if ($status_filter && in_array($status_filter, ['pending', 'approved', 'rejected'])) {
-    $sql = "SELECT id, name, email, contact, company_name, rate_requested, status,
+    $sql = "SELECT id, name, email, contact, location, acres, company_name, rate_requested, status,
             rejection_reason, submitted_at, reviewed_at, reviewed_by
             FROM customer_applications
             WHERE status = ?
@@ -59,7 +59,7 @@ if ($status_filter && in_array($status_filter, ['pending', 'approved', 'rejected
     $result = $stmt->get_result();
 } else {
     // Get all applications
-    $sql = "SELECT id, name, email, contact, company_name, rate_requested, status,
+    $sql = "SELECT id, name, email, contact, location, acres, company_name, rate_requested, status,
             rejection_reason, submitted_at, reviewed_at, reviewed_by
             FROM customer_applications
             ORDER BY submitted_at DESC";

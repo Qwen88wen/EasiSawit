@@ -62,12 +62,14 @@ if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
 $name = trim($data['name']);
 $email = trim($data['email']);
 $contact = trim($data['contact']);
+$location = isset($data['location']) ? trim($data['location']) : null;
+$acres = isset($data['acres']) ? floatval($data['acres']) : null;
 $company_name = isset($data['company_name']) ? trim($data['company_name']) : null;
 $rate_requested = isset($data['rate_requested']) ? floatval($data['rate_requested']) : null;
 
 // Insert application into database
-$sql = "INSERT INTO customer_applications (name, email, contact, company_name, rate_requested, status) 
-        VALUES (?, ?, ?, ?, ?, 'pending')";
+$sql = "INSERT INTO customer_applications (name, email, contact, location, acres, company_name, rate_requested, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')";
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
@@ -76,7 +78,7 @@ if (!$stmt) {
     exit();
 }
 
-$stmt->bind_param("ssssd", $name, $email, $contact, $company_name, $rate_requested);
+$stmt->bind_param("ssssdsd", $name, $email, $contact, $location, $acres, $company_name, $rate_requested);
 
 if (!$stmt->execute()) {
     http_response_code(503);

@@ -388,16 +388,16 @@
               <i data-lucide="phone" style="width: 16px; height: 16px;"></i>
               <span>${app.contact || 'No contact'}</span>
             </div>
-            ${app.company_name ? `
+            ${app.location ? `
             <div class="flex items-center gap-2">
-              <i data-lucide="building" style="width: 16px; height: 16px;"></i>
-              <span>${app.company_name}</span>
+              <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
+              <span>${app.location}</span>
             </div>
             ` : ''}
-            ${app.rate_requested ? `
+            ${app.acres ? `
             <div class="flex items-center gap-2">
-              <i data-lucide="dollar-sign" style="width: 16px; height: 16px;"></i>
-              <span>RM ${parseFloat(app.rate_requested).toFixed(2)}/ton</span>
+              <i data-lucide="maximize" style="width: 16px; height: 16px;"></i>
+              <span>${parseFloat(app.acres).toFixed(2)} acres</span>
             </div>
             ` : ''}
           </div>
@@ -441,17 +441,17 @@
             <p class="mt-1 text-gray-900">${app.contact || 'Not provided'}</p>
           </div>
 
-          ${app.company_name ? `
+          ${app.location ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Company Name</label>
-            <p class="mt-1 text-gray-900">${app.company_name}</p>
+            <label class="text-sm font-semibold text-gray-600">Location</label>
+            <p class="mt-1 text-gray-900">${app.location}</p>
           </div>
           ` : ''}
 
-          ${app.rate_requested ? `
+          ${app.acres ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Requested Rate</label>
-            <p class="mt-1 text-gray-900">RM ${parseFloat(app.rate_requested).toFixed(2)} per ton</p>
+            <label class="text-sm font-semibold text-gray-600">Acres</label>
+            <p class="mt-1 text-gray-900">${parseFloat(app.acres).toFixed(2)} acres</p>
           </div>
           ` : ''}
 
