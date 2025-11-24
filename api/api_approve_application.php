@@ -82,16 +82,24 @@ try {
 
     // 3. Insert into customers table
     // Set last_purchase_date to today so customer appears in Customers page immediately
-    $sql = "INSERT INTO customers (name, email, contact, rate, status, last_purchase_date, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'Active', CURDATE(), NOW(), NOW())";
+    // Map fields: location -> remark2, company_name -> company_name, rate_requested -> rate
+    $sql = "INSERT INTO customers (name, email, contact, acres, company_name, rate, remark2, status, last_purchase_date, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', CURDATE(), NOW(), NOW())";
     $stmt = $conn->prepare($sql);
 
     $rate = $application['rate_requested'] ?? 0;
-    $stmt->bind_param("sssd",
+    $acres = $application['acres'] ?? null;
+    $company_name = $application['company_name'] ?? null;
+    $location = $application['location'] ?? null; // Map location to remark2
+
+    $stmt->bind_param("sssdsds",
         $application['name'],
         $application['email'],
         $application['contact'],
-        $rate
+        $acres,
+        $company_name,
+        $rate,
+        $location
     );
 
     if (!$stmt->execute()) {

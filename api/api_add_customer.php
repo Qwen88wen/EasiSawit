@@ -25,6 +25,7 @@ if (
 }
 
 $contact = isset($data->contact) ? $data->contact : null;
+$acres = isset($data->acres) ? $data->acres : null;
 $remark = trim($data->remark);
 $remark2 = isset($data->remark2) ? trim($data->remark2) : null;
 // Convert empty string to NULL for consistent comparison
@@ -60,15 +61,16 @@ if ($exact_result->num_rows > 0) {
 }
 $exact_check_stmt->close();
 
-// Insert customer with remark and remark2 fields
-$sql = "INSERT INTO customers (name, contact, rate, remark, remark2, last_purchase_date) VALUES (?, ?, ?, ?, ?, ?)";
+// Insert customer with remark, remark2, and acres fields
+$sql = "INSERT INTO customers (name, contact, acres, rate, remark, remark2, last_purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
 $stmt = $conn->prepare($sql);
 
 $stmt->bind_param(
-    "ssdsss",
+    "ssddsss",
     $data->name,
     $contact,
+    $acres,
     $data->rate,
     $remark,
     $remark2,

@@ -819,6 +819,22 @@ const AddCustomerModal = ({ t, theme, isAddCustomerModalOpen, setIsAddCustomerMo
           />
         </div>
         <div>
+          <label htmlFor="customer_acres" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
+            Acres (Optional)
+          </label>
+          <input
+            type="number"
+            id="customer_acres"
+            name="acres"
+            value={newCustomer.acres || ''}
+            onChange={handleChange}
+            placeholder="e.g., 100.50"
+            className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
+            step="0.01"
+            min="0"
+          />
+        </div>
+        <div>
           <label htmlFor="customer_rate" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{t_modal.rate}</label>
           <input
             type="number"
@@ -894,6 +910,7 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
     if (!originalCustomer || !editingCustomer) return true;
     return originalCustomer.name === editingCustomer.name &&
            (originalCustomer.contact || '') === (editingCustomer.contact || '') &&
+           String(originalCustomer.acres || '') === String(editingCustomer.acres || '') &&
            String(originalCustomer.rate) === String(editingCustomer.rate) &&
            (originalCustomer.remark || '') === (editingCustomer.remark || '') &&
            (originalCustomer.remark2 || '') === (editingCustomer.remark2 || '');
@@ -930,6 +947,22 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
             value={editingCustomer.contact || ''}
             onChange={handleChange}
             className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
+          />
+        </div>
+        <div>
+          <label htmlFor="edit_customer_acres" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
+            Acres (Optional)
+          </label>
+          <input
+            type="number"
+            id="edit_customer_acres"
+            name="acres"
+            value={editingCustomer.acres || ''}
+            onChange={handleChange}
+            placeholder="e.g., 100.50"
+            className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
+            step="0.01"
+            min="0"
           />
         </div>
         <div>

@@ -113,7 +113,7 @@ const formatTimeAgo = (date, t_time) => {
 
 // --- Helper Components ---
 const Navigation = memo(
-  ({ t, theme, language, setLang, toggleTheme, handleLogout }) => (
+  ({ t, theme, language, setLang, toggleTheme, handleLogout, setSidebarOpen }) => (
     // --- LAYOUT FIX: Added fixed positioning and z-index ---
     <nav
       className={`${
@@ -123,6 +123,14 @@ const Navigation = memo(
       <div className="max-w-7xl mx-auto px-2 sm:px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 rounded hover:bg-emerald-600 transition"
+              title="Open Menu"
+            >
+              <i data-lucide="menu" style={{ width: 20, height: 20 }}></i>
+            </button>
             <svg
               className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"
               viewBox="0 0 100 100"
@@ -276,6 +284,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
             <SidebarItem
               t={t}
@@ -285,6 +294,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
             <SidebarItem
               t={t}
@@ -294,6 +304,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
             <SidebarItem
               t={t}
@@ -303,6 +314,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
             <SidebarItem
               t={t}
@@ -312,6 +324,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
             <SidebarItem
               t={t}
@@ -321,6 +334,7 @@ const Sidebar = memo(
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
             />
           </div>
         </div>
@@ -330,23 +344,33 @@ const Sidebar = memo(
 );
 
 const SidebarItem = memo(
-  ({ t, theme, icon, tab, activeTab, setActiveTab, sidebarOpen }) => (
-    <button
-      onClick={() => setActiveTab(tab)}
-      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
-        activeTab === tab
-          ? theme === "light"
-            ? "bg-emerald-100 text-emerald-700"
-            : "bg-emerald-800 text-white"
-          : theme === "light"
-          ? "text-gray-700 hover:bg-gray-100"
-          : "text-gray-300 hover:bg-gray-700"
-      }`}
-    >
-      <i data-lucide={icon}></i>
-      {sidebarOpen && <span className="font-medium">{t[tab]}</span>}
-    </button>
-  )
+  ({ t, theme, icon, tab, activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
+    const handleClick = () => {
+      setActiveTab(tab);
+      // Close sidebar on mobile after clicking an item
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    return (
+      <button
+        onClick={handleClick}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
+          activeTab === tab
+            ? theme === "light"
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-emerald-800 text-white"
+            : theme === "light"
+            ? "text-gray-700 hover:bg-gray-100"
+            : "text-gray-300 hover:bg-gray-700"
+        }`}
+      >
+        <i data-lucide={icon}></i>
+        {sidebarOpen && <span className="font-medium">{t[tab]}</span>}
+      </button>
+    );
+  }
 );
 
 // --- Main Application Component ---
@@ -1390,6 +1414,7 @@ const EasiSawit = ({ translations }) => {
         (c) =>
           c.name?.toLowerCase().includes(searchLower) ||
           c.contact?.toLowerCase().includes(searchLower) ||
+          c.acres?.toString().includes(searchLower) ||
           c.rate?.toString().includes(searchLower) ||
           c.remark?.toLowerCase().includes(searchLower) ||
           c.remark2?.toLowerCase().includes(searchLower)
@@ -1406,6 +1431,7 @@ const EasiSawit = ({ translations }) => {
         (c) =>
           c.name?.toLowerCase().includes(searchLower) ||
           c.contact?.toLowerCase().includes(searchLower) ||
+          c.acres?.toString().includes(searchLower) ||
           c.rate?.toString().includes(searchLower) ||
           c.remark?.toLowerCase().includes(searchLower) ||
           c.remark2?.toLowerCase().includes(searchLower)
@@ -1435,6 +1461,7 @@ const EasiSawit = ({ translations }) => {
         setLang={setLang}
         toggleTheme={toggleTheme}
         handleLogout={handleLogout}
+        setSidebarOpen={setSidebarOpen}
       />
       {/* --- LAYOUT FIX: Added 'pt-16' to this div to offset for fixed navbar --- */}
       <div className="flex pt-16">
@@ -1456,7 +1483,7 @@ const EasiSawit = ({ translations }) => {
 
         {/* --- LAYOUT FIX: Main content has margin-left (ml-...) --- */}
         <main
-          className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ml-0 ${
+          className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ml-0 w-full overflow-x-hidden ${
             sidebarOpen ? "md:ml-64" : "md:ml-20"
           }`}
         >

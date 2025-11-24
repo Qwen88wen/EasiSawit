@@ -26,20 +26,22 @@ if (
 }
 
 $contact = isset($data->contact) ? $data->contact : null;
+$acres = isset($data->acres) ? $data->acres : null;
 $remark = trim($data->remark);
 $remark2 = isset($data->remark2) ? trim($data->remark2) : null;
 if ($remark2 === '') {
     $remark2 = null;
 }
 
-$sql = "UPDATE customers SET name = ?, contact = ?, rate = ?, remark = ?, remark2 = ? WHERE id = ?";
+$sql = "UPDATE customers SET name = ?, contact = ?, acres = ?, rate = ?, remark = ?, remark2 = ? WHERE id = ?";
 
 $stmt = $conn->prepare($sql);
 
 $stmt->bind_param(
-    "ssdssi",
+    "ssddssi",
     $data->name,
     $contact,
+    $acres,
     $data->rate,
     $remark,
     $remark2,

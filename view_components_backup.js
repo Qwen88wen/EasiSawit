@@ -706,24 +706,6 @@ const CustomersView = React.memo(
                     {customer.contact}
                   </span>
                 </div>
-                {customer.acres && (
-                  <div className="flex justify-between">
-                    <span
-                      className={`${
-                        theme === "light" ? "text-gray-600" : "text-gray-400"
-                      }`}
-                    >
-                      Acres
-                    </span>
-                    <span
-                      className={`${
-                        theme === "light" ? "text-gray-800" : "text-white"
-                      } font-semibold`}
-                    >
-                      {parseFloat(customer.acres).toFixed(2)} acres
-                    </span>
-                  </div>
-                )}
                 {customer.remark && (
                   <div className="flex justify-between">
                     <span
@@ -1519,7 +1501,6 @@ const ManagementReportView = React.memo(({ t, theme, workers, customers, workLog
   const [dateRange, setDateRange] = React.useState('last30Days');
   const [startDate, setStartDate] = React.useState('');
   const [endDate, setEndDate] = React.useState('');
-  const [showDashboardModal, setShowDashboardModal] = React.useState(false);
 
   // Calculate date ranges
   const getDateRange = React.useCallback(() => {
@@ -1692,14 +1673,15 @@ const ManagementReportView = React.memo(({ t, theme, workers, customers, workLog
 
         {/* Interactive Dashboard Button */}
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowDashboardModal(true)}
+          <a
+            href="management_dashboard.html"
+            target="_blank"
             className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
           >
             <i data-lucide="bar-chart-2" style={{width: 20, height: 20}}></i>
             <span className="font-semibold">Interactive Dashboard</span>
-            <i data-lucide="maximize-2" style={{width: 16, height: 16}}></i>
-          </button>
+            <i data-lucide="external-link" style={{width: 16, height: 16}}></i>
+          </a>
         </div>
       </div>
 
@@ -2014,48 +1996,6 @@ const ManagementReportView = React.memo(({ t, theme, workers, customers, workLog
           )}
         </div>
       </div>
-
-      {/* Dashboard Modal */}
-      {showDashboardModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-          onClick={() => setShowDashboardModal(false)}
-        >
-          <div
-            className={`relative w-full h-full max-w-7xl max-h-[90vh] rounded-lg shadow-2xl overflow-hidden ${
-              theme === 'light' ? 'bg-white' : 'bg-gray-800'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className={`flex items-center justify-between px-6 py-4 border-b ${
-              theme === 'light' ? 'border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600' : 'border-gray-700 bg-gradient-to-r from-purple-700 to-blue-700'
-            }`}>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <i data-lucide="bar-chart-2" style={{width: 24, height: 24}}></i>
-                Interactive Dashboard
-              </h3>
-              <button
-                onClick={() => setShowDashboardModal(false)}
-                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
-                aria-label="Close"
-              >
-                <i data-lucide="x" style={{width: 24, height: 24}}></i>
-              </button>
-            </div>
-
-            {/* Modal Content - Iframe */}
-            <div className="w-full h-full pb-16">
-              <iframe
-                src="management_dashboard.html"
-                className="w-full h-full border-0"
-                title="Management Dashboard"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 });
@@ -2067,25 +2007,17 @@ const ApplicationsView = memo(({ t, theme }) => {
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('date-desc');
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [minAcres, setMinAcres] = useState('');
-  const [toastMessage, setToastMessage] = useState(null);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('api/api_get_customer_applications.php?_=' + new Date().getTime());
+      const response = await fetch('api/api_get_all_customers.php?_=' + new Date().getTime());
       if (!response.ok) throw new Error('Failed to fetch applications');
       const data = await response.json();
-      setApplications(data.applications || []);
+      setApplications(data.customers || []);
     } catch (error) {
       console.error('Error loading applications:', error);
-      showToast('Error loading applications: ' + error.message, 'error');
+      alert('Error loading applications: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -2095,141 +2027,48 @@ const ApplicationsView = memo(({ t, theme }) => {
     loadApplications();
   }, [loadApplications]);
 
-  const showToast = (message, type = 'info') => {
-    setToastMessage({ message, type });
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
   const statistics = useMemo(() => {
     const total = applications.length;
-    const pending = applications.filter(app => app.status === 'pending').length;
-    const approved = applications.filter(app => app.status === 'approved').length;
-    const rejected = applications.filter(app => app.status === 'rejected').length;
+    const pending = applications.filter(app => app.status === 'Pending').length;
+    const approved = applications.filter(app => app.status === 'Active').length;
+    const rejected = applications.filter(app => app.status === 'Rejected').length;
     return { total, pending, approved, rejected };
   }, [applications]);
 
   const filteredApps = useMemo(() => {
-    let filtered = applications;
-
-    // Status filter
-    if (currentFilter !== 'all') {
-      filtered = filtered.filter(app => app.status === currentFilter);
-    }
-
-    // Search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(app =>
-        (app.name?.toLowerCase().includes(term)) ||
-        (app.email?.toLowerCase().includes(term)) ||
-        (app.contact?.toLowerCase().includes(term)) ||
-        (app.location?.toLowerCase().includes(term))
-      );
-    }
-
-    // Date range filter
-    if (dateFrom) {
-      filtered = filtered.filter(app => new Date(app.submitted_at) >= new Date(dateFrom));
-    }
-    if (dateTo) {
-      filtered = filtered.filter(app => new Date(app.submitted_at) <= new Date(dateTo + ' 23:59:59'));
-    }
-
-    // Acres filter
-    if (minAcres) {
-      filtered = filtered.filter(app => parseFloat(app.acres || 0) >= parseFloat(minAcres));
-    }
-
-    // Sorting
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case 'date-desc':
-        sorted.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
-        break;
-      case 'date-asc':
-        sorted.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at));
-        break;
-      case 'name-asc':
-        sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        break;
-      case 'name-desc':
-        sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
-        break;
-      case 'acres-desc':
-        sorted.sort((a, b) => (parseFloat(b.acres || 0)) - (parseFloat(a.acres || 0)));
-        break;
-      case 'acres-asc':
-        sorted.sort((a, b) => (parseFloat(a.acres || 0)) - (parseFloat(b.acres || 0)));
-        break;
-    }
-
-    return sorted;
-  }, [applications, currentFilter, searchTerm, sortBy, dateFrom, dateTo, minAcres]);
+    if (currentFilter === 'all') return applications;
+    return applications.filter(app => app.status === currentFilter);
+  }, [applications, currentFilter]);
 
   const handleUpdateStatus = useCallback(async (id, newStatus) => {
-    const isApprove = newStatus === 'approved';
-    if (!confirm(`Are you sure you want to ${isApprove ? 'approve' : 'reject'} this application?`)) {
+    if (!confirm(`Are you sure you want to ${newStatus === 'Active' ? 'approve' : 'reject'} this application?`)) {
       return;
     }
 
-    let rejectionReason = null;
-    if (!isApprove) {
-      rejectionReason = prompt('Please provide a reason for rejection (optional):');
-    }
-
     try {
-      const apiUrl = isApprove ? 'api/api_approve_application.php' : 'api/api_reject_application.php';
-      const requestBody = isApprove
-        ? { application_id: id }
-        : { application_id: id, rejection_reason: rejectionReason };
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('api/api_update_customer_status.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ id, status: newStatus })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
-      }
-
+      if (!response.ok) throw new Error('Failed to update status');
       const result = await response.json();
-      showToast(result.message || 'Status updated successfully!', 'success');
+      alert(result.message || 'Status updated successfully!');
 
       setShowModal(false);
       setSelectedApp(null);
       loadApplications();
     } catch (error) {
       console.error('Error updating status:', error);
-      showToast('Error updating status: ' + error.message, 'error');
+      alert('Error updating status: ' + error.message);
     }
   }, [loadApplications]);
 
   const getStatusBadgeClass = (status) => {
-    if (status === 'pending') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'approved') return 'bg-green-100 text-green-800';
-    if (status === 'rejected') return 'bg-red-100 text-red-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    if (status === 'Pending') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'Active') return 'bg-green-100 text-green-800';
+    return 'bg-red-100 text-red-800';
   };
 
   return (
@@ -2255,124 +2094,29 @@ const ApplicationsView = memo(({ t, theme }) => {
         </div>
       </div>
 
-      {/* Filter Tabs & Search */}
+      {/* Filter Tabs */}
       <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6 mb-6`}>
-        <div className="space-y-4">
-          <div className="flex gap-4 flex-wrap">
-            {[
-              { key: 'all', label: 'All Applications' },
-              { key: 'pending', label: 'Pending' },
-              { key: 'approved', label: 'Approved' },
-              { key: 'rejected', label: 'Rejected' }
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setCurrentFilter(key)}
-                className={`px-6 py-2 rounded-lg font-semibold transition ${
-                  currentFilter === key
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : theme === 'light'
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Search and Sort */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-[300px] relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, email, contact, or location..."
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
-                  theme === 'light'
-                    ? 'border-gray-300 bg-white text-gray-900'
-                    : 'border-gray-600 bg-gray-700 text-white'
-                }`}
-              />
-              <i data-lucide="search" style={{ width: 18, height: 18, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}></i>
-            </div>
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={`px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
-                theme === 'light'
-                  ? 'border-gray-300 bg-white text-gray-900'
-                  : 'border-gray-600 bg-gray-700 text-white'
-              }`}
-            >
-              <option value="date-desc">Latest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="name-asc">Name (A-Z)</option>
-              <option value="name-desc">Name (Z-A)</option>
-              <option value="acres-desc">Acres (High-Low)</option>
-              <option value="acres-asc">Acres (Low-High)</option>
-            </select>
-
+        <div className="flex gap-4 flex-wrap">
+          {[
+            { key: 'all', label: 'All Applications' },
+            { key: 'Pending', label: 'Pending' },
+            { key: 'Active', label: 'Approved' },
+            { key: 'Rejected', label: 'Rejected' }
+          ].map(({ key, label }) => (
             <button
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`px-6 py-2 border rounded-lg transition flex items-center gap-2 ${
-                theme === 'light'
-                  ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                  : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
+              key={key}
+              onClick={() => setCurrentFilter(key)}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                currentFilter === key
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : theme === 'light'
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              <i data-lucide="filter" style={{ width: 18, height: 18 }}></i>
-              Advanced
+              {label}
             </button>
-          </div>
-
-          {/* Advanced Filters */}
-          {showAdvancedFilters && (
-            <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Date From</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg ${
-                    theme === 'light'
-                      ? 'border-gray-300 bg-white text-gray-900'
-                      : 'border-gray-600 bg-gray-700 text-white'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Date To</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-lg ${
-                    theme === 'light'
-                      ? 'border-gray-300 bg-white text-gray-900'
-                      : 'border-gray-600 bg-gray-700 text-white'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Min Acres</label>
-                <input
-                  type="number"
-                  value={minAcres}
-                  onChange={(e) => setMinAcres(e.target.value)}
-                  placeholder="0"
-                  className={`w-full px-4 py-2 border rounded-lg ${
-                    theme === 'light'
-                      ? 'border-gray-300 bg-white text-gray-900'
-                      : 'border-gray-600 bg-gray-700 text-white'
-                  }`}
-                />
-              </div>
-            </div>
-          )}
+          ))}
         </div>
       </div>
 
@@ -2402,7 +2146,7 @@ const ApplicationsView = memo(({ t, theme }) => {
       <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6`}>
         <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
           <i data-lucide="inbox" style={{ width: 24, height: 24 }}></i>
-          Applications List ({filteredApps.length})
+          Applications List
         </h3>
 
         {loading ? (
@@ -2427,7 +2171,7 @@ const ApplicationsView = memo(({ t, theme }) => {
                 <div className="flex justify-between items-start mb-4">
                   <h4 className={`text-lg font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{app.name}</h4>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(app.status)}`}>
-                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                    {app.status}
                   </span>
                 </div>
 
@@ -2446,16 +2190,10 @@ const ApplicationsView = memo(({ t, theme }) => {
                       <span>{app.location}</span>
                     </div>
                   )}
-                  {app.acres && (
-                    <div className="flex items-center gap-2">
-                      <i data-lucide="maximize" style={{ width: 16, height: 16 }}></i>
-                      <span>{parseFloat(app.acres).toFixed(2)} acres</span>
-                    </div>
-                  )}
                 </div>
 
                 <div className={`mt-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-600'} text-xs ${theme === 'light' ? 'text-gray-500' : 'text-gray-500'}`}>
-                  Applied: {formatDate(app.submitted_at)}
+                  Applied: {new Date(app.created_at).toLocaleDateString()}
                 </div>
               </div>
             ))}
@@ -2480,7 +2218,7 @@ const ApplicationsView = memo(({ t, theme }) => {
                   <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Status</label>
                   <div className="mt-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(selectedApp.status)}`}>
-                      {selectedApp.status.charAt(0).toUpperCase() + selectedApp.status.slice(1)}
+                      {selectedApp.status}
                     </span>
                   </div>
                 </div>
@@ -2505,64 +2243,29 @@ const ApplicationsView = memo(({ t, theme }) => {
                   <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.location || 'Not provided'}</p>
                 </div>
 
-                {selectedApp.acres && (
-                  <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Acres</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{parseFloat(selectedApp.acres).toFixed(2)} acres</p>
-                  </div>
-                )}
-
-                {selectedApp.company_name && (
-                  <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Company Name</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.company_name}</p>
-                  </div>
-                )}
-
-                {selectedApp.rate_requested && (
-                  <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Requested Rate</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>RM {parseFloat(selectedApp.rate_requested).toFixed(2)}</p>
-                  </div>
-                )}
-
                 <div>
                   <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Application Date</label>
-                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatDateTime(selectedApp.submitted_at)}</p>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{new Date(selectedApp.created_at).toLocaleString()}</p>
                 </div>
 
-                {selectedApp.reviewed_at && (
+                {selectedApp.updated_at && selectedApp.updated_at !== selectedApp.created_at && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Reviewed At</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatDateTime(selectedApp.reviewed_at)}</p>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Last Updated</label>
+                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{new Date(selectedApp.updated_at).toLocaleString()}</p>
                   </div>
                 )}
 
-                {selectedApp.reviewed_by && (
-                  <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Reviewed By</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.reviewed_by}</p>
-                  </div>
-                )}
-
-                {selectedApp.rejection_reason && (
-                  <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Rejection Reason</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.rejection_reason}</p>
-                  </div>
-                )}
-
-                {selectedApp.status === 'pending' && (
+                {selectedApp.status === 'Pending' && (
                   <div className={`flex gap-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
                     <button
-                      onClick={() => handleUpdateStatus(selectedApp.id, 'approved')}
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Active')}
                       className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2"
                     >
                       <i data-lucide="check" style={{ width: 20, height: 20 }}></i>
                       Approve
                     </button>
                     <button
-                      onClick={() => handleUpdateStatus(selectedApp.id, 'rejected')}
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Rejected')}
                       className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2"
                     >
                       <i data-lucide="x" style={{ width: 20, height: 20 }}></i>
@@ -2573,17 +2276,6 @@ const ApplicationsView = memo(({ t, theme }) => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className={`fixed top-5 right-5 px-6 py-4 rounded-lg shadow-lg z-[100] text-white font-semibold ${
-          toastMessage.type === 'success' ? 'bg-green-600' :
-          toastMessage.type === 'error' ? 'bg-red-600' :
-          'bg-blue-600'
-        }`}>
-          {toastMessage.message}
         </div>
       )}
     </div>

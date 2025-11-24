@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $customers = array();
 
 // Get ALL customers including pending applications (status field)
-$sql = "SELECT id, name, email, contact, company_name as location, status, created_at, updated_at
+$sql = "SELECT id, name, email, contact, acres, company_name as location, status, created_at, updated_at
         FROM customers
         ORDER BY created_at DESC";
 
