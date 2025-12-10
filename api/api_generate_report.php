@@ -24,13 +24,10 @@ require_once('../TCPDF/tcpdf.php');
 // MULTI-LANGUAGE SUPPORT
 // ============================================================================
 
-// Get language parameter from URL (default: English)
-$lang = $_GET['lang'] ?? 'en';
+// FORCE ENGLISH ONLY - Ignore language parameter from URL
+$lang = 'en'; // Always use English for payslips
 
-// Validate language parameter
-if (!in_array($lang, ['en', 'zh', 'ms'])) {
-    $lang = 'en'; // Fallback to English if invalid
-}
+// Note: Language parameter is ignored - all payslips generated in English only
 
 // Translation dictionary
 $translations = [
@@ -216,30 +213,8 @@ try {
     $pdf->SetMargins(15, 15, 15, true);
     $pdf->SetAutoPageBreak(TRUE, 15);
     
-    // Dynamic font setting based on language
-    if ($lang === 'zh') {
-        // Try Chinese fonts for Chinese language
-        $font_loaded = false;
-        $chinese_fonts = ['cid0cs', 'cid0ct', 'stsongstdlight', 'msungstdlight', 'dejavusans'];
-        
-        foreach ($chinese_fonts as $font_name) {
-            try {
-                $pdf->setFont($font_name, '', 10);
-                $font_loaded = true;
-                break;
-            } catch (Exception $e) {
-                continue;
-            }
-        }
-        
-        if (!$font_loaded) {
-            // Fallback to helvetica if no Chinese font available
-            $pdf->setFont('helvetica', '', 10);
-        }
-    } else {
-        // Use standard font for English and Malay
-        $pdf->setFont('helvetica', '', 10);
-    }
+    // Font setting - English only, use standard font
+    $pdf->setFont('helvetica', '', 10);
     
     // ============================================================================
     // LOOP THROUGH EACH PAYSLIP

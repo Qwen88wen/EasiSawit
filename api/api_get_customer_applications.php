@@ -1,32 +1,4 @@
 <?php
-/**
- * Get Customer Applications
- * GET: /api/api_get_customer_applications.php
- *
- * Returns all customer applications from customer_applications table
- * Requires authentication
- *
- * Query Parameters:
- * - status: Filter by status (pending/approved/rejected) - optional
- *
- * Response:
- * {
- *   "applications": [
- *     {
- *       "id": 1,
- *       "name": "John Doe",
- *       "email": "john@example.com",
- *       "contact": "016-123-4567",
- *       "company_name": "My Company",
- *       "rate_requested": 50.00,
- *       "status": "pending",
- *       "submitted_at": "2025-11-24 07:18:51",
- *       "reviewed_at": null,
- *       "reviewed_by": null
- *     }
- *   ]
- * }
- */
 
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");

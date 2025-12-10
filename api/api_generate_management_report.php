@@ -45,10 +45,8 @@ try {
         throw new Exception("Invalid month or year.");
     }
 
-    // ============================================================================
-    // FETCH PAYROLL DATA
-    // ============================================================================
-
+   // FETCH PAYROLL DATA
+   
     $sql = "SELECT 
               pp.id,
               pp.worker_id,
@@ -125,10 +123,9 @@ try {
         // Totals stay at 0 values already initialized
     }
 
-    // ============================================================================
+    
     // GENERATE PDF
-    // ============================================================================
-
+   
     $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
     $pdf->SetMargins(10, 10, 10);
     $pdf->SetAutoPageBreak(TRUE, 15);

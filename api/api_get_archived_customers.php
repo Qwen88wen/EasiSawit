@@ -25,7 +25,7 @@ include 'db_connect.php';
 $archived_customers = array();
 
 // Fetch ARCHIVED customers (last_purchase_date older than 14 days, or NULL)
-$sql = "SELECT id, name, rate, contact, remark, remark2, last_purchase_date,
+$sql = "SELECT id, name, rate, contact, acres, remark, remark2, last_purchase_date,
                DATEDIFF(CURDATE(), last_purchase_date) as days_inactive
         FROM customers
         WHERE last_purchase_date IS NULL

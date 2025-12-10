@@ -1,8 +1,5 @@
 <?php
 // api_get_workers.php
-
-// These headers are important for security and to allow
-// your React app to talk to this PHP file (CORS)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -17,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $workers = array();
 
 // Gracefully handle cases where table may not exist yet
-$sql = "SELECT id, name, type, epf, permit, status FROM workers";
+$sql = "SELECT id, name, identity_number, identity_type, type, age, epf, permit, status, marital_status, children_count, spouse_working, zakat_monthly FROM workers";
 $result = $conn->query($sql);
 
 if ($result instanceof mysqli_result) {

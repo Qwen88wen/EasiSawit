@@ -30,49 +30,61 @@ const StatCard = memo(({ title, value, color, icon, theme }) => (
 
 // --- UPDATED ActivityItem to include icon ---
 // --- UPDATED ActivityItem to include icon and dismiss button ---
-const ActivityItem = memo(({ text, time, icon, theme, onDismiss, id }) => (
-  <div
-    className={`flex items-start py-3 border-b last:border-0 ${
-      theme === "light" ? "border-gray-200" : "border-gray-700"
-    }`}
-  >
-    <i
-      data-lucide={icon || "activity"}
-      className={`w-4 h-4 mr-3 mt-1 flex-shrink-0 ${
-        theme === "light" ? "text-gray-500" : "text-gray-400"
+const ActivityItem = memo(({ activity, time, theme, onDismiss, t_log }) => {
+  // Translate activity dynamically
+  let text = t_log[activity.key] || "Unknown action";
+
+  // Replace placeholders
+  if (activity.args && activity.args.length > 0) {
+    activity.args.forEach((arg) => {
+      text = text.replace("%s", arg);
+    });
+  }
+
+  return (
+    <div
+      className={`flex items-start py-3 border-b last:border-0 ${
+        theme === "light" ? "border-gray-200" : "border-gray-700"
       }`}
-    ></i>
-    <div className="flex-1 flex justify-between items-start">
-      <p
-        className={`${
-          theme === "light" ? "text-gray-700" : "text-gray-300"
-        } text-sm pr-4`}
-      >
-        {text}
-      </p>
-      <div className="flex items-center space-x-2">
-        <span
-          className={`text-xs ${
-            theme === "light" ? "text-gray-500" : "text-gray-400"
-          } whitespace-nowrap`}
-        >
-          {time}
-        </span>
-        <button
-          onClick={() => onDismiss(id)}
+    >
+      <i
+        data-lucide={activity.icon || "activity"}
+        className={`w-4 h-4 mr-3 mt-1 flex-shrink-0 ${
+          theme === "light" ? "text-gray-500" : "text-gray-400"
+        }`}
+      ></i>
+      <div className="flex-1 flex justify-between items-start">
+        <p
           className={`${
-            theme === "light"
-              ? "text-gray-400 hover:text-gray-600"
-              : "text-gray-500 hover:text-gray-300"
-          } transition`}
-          title="Dismiss"
+            theme === "light" ? "text-gray-700" : "text-gray-300"
+          } text-sm pr-4`}
         >
-          <i data-lucide="x" className="w-4 h-4"></i>
-        </button>
+          {text}
+        </p>
+        <div className="flex items-center space-x-2">
+          <span
+            className={`text-xs ${
+              theme === "light" ? "text-gray-500" : "text-gray-400"
+            } whitespace-nowrap`}
+          >
+            {time}
+          </span>
+          <button
+            onClick={() => onDismiss(activity.id)}
+            className={`${
+              theme === "light"
+                ? "text-gray-400 hover:text-gray-600"
+                : "text-gray-500 hover:text-gray-300"
+            } transition`}
+            title="Dismiss"
+          >
+            <i data-lucide="x" className="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-));
+  );
+});
 
 // --- View Components ---
 
@@ -92,6 +104,30 @@ const DashboardView = React.memo(
   }) => {
     const t_dash = t.dashboardView;
     const t_time = t.timeAgo;
+    const t_log = t.activityLog;
+
+    // Add state to force periodic re-renders for time updates
+    const [, setTick] = React.useState(0);
+
+    // Calculate this month's work logs count
+    const thisMonthLogsCount = React.useMemo(() => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11, so add 1
+
+      console.log('[DASHBOARD] Filtering work logs for:', currentYear, currentMonth);
+
+      const filtered = workLogs.filter(log => {
+        if (!log.log_date) return false;
+
+        // Parse log_date which is in format 'YYYY-MM-DD'
+        const [year, month] = log.log_date.split('-').map(Number);
+        return year === currentYear && month === currentMonth;
+      });
+
+      console.log('[DASHBOARD] This month logs:', filtered.length, '/ Total logs:', workLogs.length);
+      return filtered.length;
+    }, [workLogs]);
 
     let cpoPriceValue = "Loading...";
     let cpoPriceTitle = t_dash.latestCpoPrice || "Latest CPO Price";
@@ -122,6 +158,14 @@ const DashboardView = React.memo(
       }, 100);
       return () => clearTimeout(timer);
     }, [cpoPriceData, recentActivity]); // Re-run icons when activity list changes
+
+    // Add periodic timer to update "time ago" displays
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setTick(tick => tick + 1); // Force re-render every 30 seconds
+      }, 30000);
+      return () => clearInterval(interval);
+    }, []);
 
     return (
       <div className="w-full space-y-6">
@@ -157,7 +201,7 @@ const DashboardView = React.memo(
           />
           <StatCard
             title={t_dash.thisMonthLogs}
-            value={workLogs.length.toLocaleString()}
+            value={thisMonthLogsCount.toLocaleString()}
             color="bg-purple-500"
             icon="calendar"
             theme={theme}
@@ -197,12 +241,11 @@ const DashboardView = React.memo(
               recentActivity.map((activity) => (
                 <ActivityItem
                   key={activity.id}
-                  text={activity.text}
+                  activity={activity}
                   time={formatTimeAgo(activity.time, t_time)}
-                  icon={activity.icon}
                   theme={theme}
-                  id={activity.id}
                   onDismiss={removeActivity}
+                  t_log={t_log}
                 />
               ))
             ) : (
@@ -554,7 +597,7 @@ const CustomersView = React.memo(
               theme === "light" ? "text-gray-800" : "text-white"
             }`}
           >
-            {showArchivedCustomers ? "Archived Customers" : t_view.title} ({displayList.length.toLocaleString()} {t.customers})
+            {showArchivedCustomers ? t_view.archivedCustomers : t_view.title} ({displayList.length.toLocaleString()} {t.customers})
           </h2>
           <div className="flex gap-2 w-full sm:w-auto">
             <button
@@ -566,7 +609,7 @@ const CustomersView = React.memo(
               } text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition flex-1 sm:flex-initial justify-center`}
             >
               <i data-lucide={showArchivedCustomers ? "users" : "archive"} style={{ width: 20, height: 20 }}></i>
-              <span>{showArchivedCustomers ? "Show Active" : "Show Archived"}</span>
+              <span>{showArchivedCustomers ? t_view.showActive : t_view.showArchived}</span>
             </button>
             {!showArchivedCustomers && (
               <button
@@ -584,7 +627,7 @@ const CustomersView = React.memo(
           <div className="relative">
             <input
               type="text"
-              placeholder="Search by name, contact, rate, service area, or location..."
+              placeholder={t_view.searchPlaceholder}
               value={customerSearchTerm}
               onChange={(e) => setCustomerSearchTerm(e.target.value)}
               className={`w-full border rounded-lg px-10 py-2 ${
@@ -651,7 +694,7 @@ const CustomersView = React.memo(
                         handleReactivateCustomer(customer.id, customer.name)
                       }
                       className="text-green-600 hover:text-green-800"
-                      title="Reactivate Customer"
+                      title={t_view.reactivateCustomer}
                     >
                       <i
                         data-lucide="rotate-ccw"
@@ -713,14 +756,14 @@ const CustomersView = React.memo(
                         theme === "light" ? "text-gray-600" : "text-gray-400"
                       }`}
                     >
-                      Acres
+                      {t_view.acres}
                     </span>
                     <span
                       className={`${
                         theme === "light" ? "text-gray-800" : "text-white"
                       } font-semibold`}
                     >
-                      {parseFloat(customer.acres).toFixed(2)} acres
+                      {parseFloat(customer.acres).toFixed(2)} {t_view.acres.toLowerCase()}
                     </span>
                   </div>
                 )}
@@ -731,7 +774,7 @@ const CustomersView = React.memo(
                         theme === "light" ? "text-gray-600" : "text-gray-400"
                       }`}
                     >
-                      Service Area
+                      {t_view.serviceArea}
                     </span>
                     <span
                       className={`${
@@ -749,7 +792,7 @@ const CustomersView = React.memo(
                         theme === "light" ? "text-gray-600" : "text-gray-400"
                       }`}
                     >
-                      Location
+                      {t_view.location}
                     </span>
                     <span
                       className={`${
@@ -775,7 +818,7 @@ const CustomersView = React.memo(
                   } py-2 rounded transition flex items-center justify-center space-x-2`}
                 >
                   <i data-lucide="rotate-ccw" style={{ width: 16, height: 16 }}></i>
-                  <span>Reactivate Customer</span>
+                  <span>{t_view.reactivateCustomer}</span>
                 </button>
               ) : (
                 <button
@@ -858,6 +901,7 @@ const PayrollView = React.memo(
     handleGenerateManagementReport,
     payrollSummary,
     currentRunId,
+    setActiveTab,
   }) => {
     const t_view = t.payrollView;
 
@@ -1163,7 +1207,7 @@ const PayrollView = React.memo(
 
                 <button
                   onClick={() => {
-                    window.open('management_dashboard.html', '_blank');
+                    setActiveTab('reports');
                   }}
                   className="flex items-center justify-center space-x-2 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-all shadow-md hover:shadow-lg"
                 >
@@ -1173,7 +1217,7 @@ const PayrollView = React.memo(
                   ></i>
                   <span>{t_view.managementReport}</span>
                   <i
-                    data-lucide="external-link"
+                    data-lucide="arrow-right"
                     style={{ width: 16, height: 16 }}
                   ></i>
                 </button>
@@ -1208,26 +1252,15 @@ const WorkLogsView = memo(
     const t_view = t.workLogsView;
     const pageSize = 100;
 
-    // Filter work logs based on selected worker and customer
-    const filteredWorkLogs = workLogs.filter((log) => {
-      const workerMatch =
-        workLogWorkerFilter === "All" ||
-        log.worker_id === parseInt(workLogWorkerFilter);
-      const customerMatch =
-        workLogCustomerFilter === "All" ||
-        log.customer_id === parseInt(workLogCustomerFilter);
-      return workerMatch && customerMatch;
-    });
+    // Use filtered work logs count from parent (workLogs here is already filtered)
+    const filteredWorkLogsCount = workLogs.length;
 
     const startIndex =
-      filteredWorkLogs.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
-    const endIndex = Math.min(currentPage * pageSize, filteredWorkLogs.length);
+      filteredWorkLogsCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+    const endIndex = Math.min(currentPage * pageSize, filteredWorkLogsCount);
 
-    // Get current page data from filtered work logs
-    const displayData = filteredWorkLogs.slice(
-      (currentPage - 1) * pageSize,
-      currentPage * pageSize
-    );
+    // Use currentData from pagination hook (already filtered and paginated)
+    const displayData = currentData;
 
     useEffect(() => {
       const timer = setTimeout(() => {
@@ -1236,7 +1269,7 @@ const WorkLogsView = memo(
         }
       }, 50);
       return () => clearTimeout(timer);
-    }, [filteredWorkLogs]);
+    }, [currentData]);
 
     return (
       <div className="w-full space-y-6">
@@ -1246,7 +1279,7 @@ const WorkLogsView = memo(
               theme === "light" ? "text-gray-800" : "text-white"
             }`}
           >
-            {t_view.title} ({filteredWorkLogs.length.toLocaleString()}{" "}
+            {t_view.title} ({filteredWorkLogsCount.toLocaleString()}{" "}
             {t_view.entries})
           </h2>
           <button
@@ -1272,6 +1305,7 @@ const WorkLogsView = memo(
               <select
                 value={workLogWorkerFilter}
                 onChange={(e) => {
+                  console.log('[FILTER] Worker filter changed to:', e.target.value);
                   setWorkLogWorkerFilter(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1301,6 +1335,7 @@ const WorkLogsView = memo(
               <select
                 value={workLogCustomerFilter}
                 onChange={(e) => {
+                  console.log('[FILTER] Customer filter changed to:', e.target.value);
                   setWorkLogCustomerFilter(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1471,7 +1506,7 @@ const WorkLogsView = memo(
               }`}
             >
               {t.showing} {startIndex} {t.to} {endIndex} {t.of}{" "}
-              {filteredWorkLogs.length.toLocaleString()} {t.results}
+              {filteredWorkLogsCount.toLocaleString()} {t.results}
             </div>
             <div className="flex space-x-2">
               <button
@@ -1490,14 +1525,11 @@ const WorkLogsView = memo(
                   theme === "light" ? "text-gray-700" : "text-gray-300"
                 }`}
               >
-                {t.page} {currentPage} {t.of}{" "}
-                {Math.ceil(filteredWorkLogs.length / pageSize) || 1}
+                {t.page} {currentPage} {t.of} {maxPage || 1}
               </span>
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={
-                  currentPage >= Math.ceil(filteredWorkLogs.length / pageSize)
-                }
+                disabled={currentPage >= maxPage}
                 className={`px-3 py-1 border rounded disabled:opacity-50 ${
                   theme === "light"
                     ? "border-gray-300 hover:bg-gray-100"
@@ -1514,554 +1546,69 @@ const WorkLogsView = memo(
   }
 );
 // --- Management Report View ---
-const ManagementReportView = React.memo(({ t, theme, workers, customers, workLogs }) => {
-  const t_reports = t.reportsView;
-  const [dateRange, setDateRange] = React.useState('last30Days');
-  const [startDate, setStartDate] = React.useState('');
-  const [endDate, setEndDate] = React.useState('');
-  const [showDashboardModal, setShowDashboardModal] = React.useState(false);
+const ManagementReportView = ({ t, theme, setActiveTab }) => {
+  const iframeRef = React.useRef(null);
 
-  // Calculate date ranges
-  const getDateRange = React.useCallback(() => {
-    const today = new Date();
-    let start, end = today;
+  // Use effect to handle iframe lifecycle
+  React.useEffect(() => {
+    // Component mounted - iframe is ready
+    console.log('Management Dashboard mounted');
 
-    switch(dateRange) {
-      case 'today':
-        start = new Date(today);
-        break;
-      case 'thisWeek':
-        start = new Date(today);
-        start.setDate(today.getDate() - today.getDay());
-        break;
-      case 'thisMonth':
-        start = new Date(today.getFullYear(), today.getMonth(), 1);
-        break;
-      case 'last7Days':
-        start = new Date(today);
-        start.setDate(today.getDate() - 7);
-        break;
-      case 'last30Days':
-        start = new Date(today);
-        start.setDate(today.getDate() - 30);
-        break;
-      case 'customRange':
-        start = startDate ? new Date(startDate) : new Date(today);
-        end = endDate ? new Date(endDate) : today;
-        break;
-      default:
-        start = new Date(today);
-        start.setDate(today.getDate() - 30);
-    }
-    return { start, end };
-  }, [dateRange, startDate, endDate]);
-
-  const { start: filterStartDate, end: filterEndDate } = getDateRange();
-
-  // Filter work logs by date range
-  const filteredLogs = React.useMemo(() => {
-    return workLogs.filter(log => {
-      const logDate = new Date(log.work_date);
-      return logDate >= filterStartDate && logDate <= filterEndDate;
-    });
-  }, [workLogs, filterStartDate, filterEndDate]);
-
-  // Calculate statistics
-  const stats = React.useMemo(() => {
-    const totalTons = filteredLogs.reduce((sum, log) => sum + parseFloat(log.tons || 0), 0);
-    const totalRevenue = filteredLogs.reduce((sum, log) => sum + (parseFloat(log.tons || 0) * parseFloat(log.rate || 0)), 0);
-
-    const activeWorkerIds = new Set(filteredLogs.map(log => log.worker_id));
-    const activeWorkersCount = activeWorkerIds.size;
-
-    // Calculate days in range
-    const daysInRange = Math.max(1, Math.ceil((filterEndDate - filterStartDate) / (1000 * 60 * 60 * 24)));
-    const weeksInRange = Math.max(1, daysInRange / 7);
-    const monthsInRange = Math.max(1, daysInRange / 30);
-
-    return {
-      totalTons,
-      totalRevenue,
-      activeWorkersCount,
-      avgTonsPerDay: totalTons / daysInRange,
-      avgTonsPerWeek: totalTons / weeksInRange,
-      avgTonsPerMonth: totalTons / monthsInRange,
-      totalLogs: filteredLogs.length,
-    };
-  }, [filteredLogs, filterStartDate, filterEndDate]);
-
-  // Worker performance data
-  const workerPerformance = React.useMemo(() => {
-    const workerMap = {};
-    filteredLogs.forEach(log => {
-      if (!workerMap[log.worker_id]) {
-        workerMap[log.worker_id] = {
-          id: log.worker_id,
-          name: log.worker_name,
-          totalTons: 0,
-          workDays: new Set(),
-        };
+    // Initialize icons
+    const timer = setTimeout(() => {
+      if (window.lucide) {
+        window.lucide.createIcons();
       }
-      workerMap[log.worker_id].totalTons += parseFloat(log.tons || 0);
-      workerMap[log.worker_id].workDays.add(log.work_date);
-    });
+    }, 50);
 
-    return Object.values(workerMap)
-      .map(w => ({
-        ...w,
-        workDays: w.workDays.size,
-        avgPerDay: w.totalTons / w.workDays.size,
-      }))
-      .sort((a, b) => b.totalTons - a.totalTons);
-  }, [filteredLogs]);
-
-  // Customer profitability data
-  const customerProfitability = React.useMemo(() => {
-    const customerMap = {};
-    filteredLogs.forEach(log => {
-      if (!customerMap[log.customer_id]) {
-        customerMap[log.customer_id] = {
-          id: log.customer_id,
-          name: log.customer_name,
-          totalVolume: 0,
-          totalValue: 0,
-          logCount: 0,
-          rates: [],
-        };
+    // Cleanup function when component unmounts
+    return () => {
+      clearTimeout(timer);
+      console.log('Management Dashboard unmounting');
+      // Ensure iframe loses focus when unmounting
+      if (iframeRef.current) {
+        iframeRef.current.blur();
       }
-      const tons = parseFloat(log.tons || 0);
-      const rate = parseFloat(log.rate || 0);
-      customerMap[log.customer_id].totalVolume += tons;
-      customerMap[log.customer_id].totalValue += tons * rate;
-      customerMap[log.customer_id].logCount += 1;
-      customerMap[log.customer_id].rates.push(rate);
-    });
-
-    return Object.values(customerMap)
-      .map(c => ({
-        ...c,
-        avgRate: c.rates.reduce((a, b) => a + b, 0) / c.rates.length,
-      }))
-      .sort((a, b) => b.totalVolume - a.totalVolume);
-  }, [filteredLogs]);
-
-  // Recent activities (last 10 logs)
-  const recentActivities = React.useMemo(() => {
-    return [...workLogs]
-      .sort((a, b) => new Date(b.work_date) - new Date(a.work_date))
-      .slice(0, 10);
-  }, [workLogs]);
-
-  // New Workers - Filter workers created within the date range
-  const newWorkers = React.useMemo(() => {
-    return workers.filter(worker => {
-      if (!worker.created_at) return false;
-      const createdDate = new Date(worker.created_at);
-      return createdDate >= filterStartDate && createdDate <= filterEndDate;
-    });
-  }, [workers, filterStartDate, filterEndDate]);
-
-  // New Customers - Filter customers created within the date range
-  const newCustomers = React.useMemo(() => {
-    return customers.filter(customer => {
-      if (!customer.created_at) return false;
-      const createdDate = new Date(customer.created_at);
-      return createdDate >= filterStartDate && createdDate <= filterEndDate;
-    });
-  }, [customers, filterStartDate, filterEndDate]);
-
-  // Format report period for display
-  const reportPeriod = React.useMemo(() => {
-    const formatDate = (date) => {
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
-    return `${formatDate(filterStartDate)} - ${formatDate(filterEndDate)}`;
-  }, [filterStartDate, filterEndDate]);
+  }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-            {t_reports.title}
-          </h2>
-          <p className={`text-sm mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-            {t_reports.reportPeriod || 'Report Period'}: {reportPeriod}
-          </p>
-        </div>
-
-        {/* Interactive Dashboard Button */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowDashboardModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
-          >
-            <i data-lucide="bar-chart-2" style={{width: 20, height: 20}}></i>
-            <span className="font-semibold">Interactive Dashboard</span>
-            <i data-lucide="maximize-2" style={{width: 16, height: 16}}></i>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center">
-        <div></div>
-        {/* Date Range Selector */}
-        <div className="flex items-center space-x-2">
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className={`border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-              theme === 'light' ? 'bg-white' : 'bg-gray-700 text-white'
-            }`}
-          >
-            <option value="today">{t_reports.today}</option>
-            <option value="thisWeek">{t_reports.thisWeek}</option>
-            <option value="thisMonth">{t_reports.thisMonth}</option>
-            <option value="last7Days">{t_reports.last7Days}</option>
-            <option value="last30Days">{t_reports.last30Days}</option>
-            <option value="customRange">{t_reports.customRange}</option>
-          </select>
-
-          {dateRange === 'customRange' && (
-            <>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className={`border rounded-lg px-3 py-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-700 text-white'}`}
-              />
-              <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>{t_reports.to}</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={`border rounded-lg px-3 py-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-700 text-white'}`}
-              />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Statistics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
-        <StatCard title={t_reports.totalOutput} value={`${stats.totalTons.toFixed(2)} ${t_reports.tons}`} color="bg-emerald-500" icon="package" theme={theme} />
-        <StatCard title={t_reports.activeWorkers} value={stats.activeWorkersCount.toString()} color="bg-blue-500" icon="users" theme={theme} />
-        <StatCard title={t_reports.avgTonsPerDay} value={stats.avgTonsPerDay.toFixed(2)} color="bg-purple-500" icon="trending-up" theme={theme} />
-        <StatCard title={t_reports.totalRevenue} value={`RM ${stats.totalRevenue.toFixed(2)}`} color="bg-orange-500" icon="dollar-sign" theme={theme} />
-        <StatCard title={t_reports.newWorkers || 'New Workers'} value={newWorkers.length.toString()} color="bg-green-500" icon="user-plus" theme={theme} />
-        <StatCard title={t_reports.newCustomers || 'New Customers'} value={newCustomers.length.toString()} color="bg-pink-500" icon="user-check" theme={theme} />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activities */}
-        <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-            {t_reports.recentActivities}
-          </h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {recentActivities.length === 0 ? (
-              <p className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-                {t_reports.noActivities}
-              </p>
-            ) : (
-              recentActivities.map((log, idx) => (
-                <div key={idx} className={`flex justify-between items-center py-2 border-b ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
-                  <div>
-                    <p className={`text-sm font-medium ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-                      {log.worker_name} → {log.customer_name}
-                    </p>
-                    <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {log.tons} {t_reports.tons} @ RM{log.rate}/{t.perTon}
-                    </p>
-                  </div>
-                  <span className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {log.work_date}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Worker Efficiency */}
-        <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-            {t_reports.workerEfficiency}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className={`p-4 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t_reports.avgTonsPerDay}</p>
-              <p className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-                {stats.avgTonsPerDay.toFixed(2)}
-              </p>
-            </div>
-            <div className={`p-4 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t_reports.avgTonsPerWeek}</p>
-              <p className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-                {stats.avgTonsPerWeek.toFixed(2)}
-              </p>
-            </div>
-            <div className={`p-4 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t_reports.avgTonsPerMonth}</p>
-              <p className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-                {stats.avgTonsPerMonth.toFixed(2)}
-              </p>
-            </div>
-            <div className={`p-4 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t_reports.workLogs}</p>
-              <p className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-                {stats.totalLogs}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Worker Performance Ranking */}
-      <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-        <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-          {t_reports.workerPerformance}
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className={`${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <tr>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.rank}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.workerName}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.totalTons}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.workDays}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.avgPerDay}
-                </th>
-              </tr>
-            </thead>
-            <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
-              {workerPerformance.slice(0, 10).map((worker, idx) => (
-                <tr key={worker.id} className={`${theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-700'}`}>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                    {idx + 1}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                    {worker.name}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {worker.totalTons.toFixed(2)}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {worker.workDays}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {worker.avgPerDay.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Customer Profitability Analysis */}
-      <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-        <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-          {t_reports.customerProfitability}
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className={`${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-              <tr>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.customerName}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.totalVolume}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.workLogs}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.avgRate}
-                </th>
-                <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                  {t_reports.estimatedValue}
-                </th>
-              </tr>
-            </thead>
-            <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
-              {customerProfitability.slice(0, 10).map((customer) => (
-                <tr key={customer.id} className={`${theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-700'}`}>
-                  <td className={`px-4 py-3 text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                    {customer.name}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {customer.totalVolume.toFixed(2)} {t_reports.tons}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {customer.logCount}
-                  </td>
-                  <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    RM{customer.avgRate.toFixed(2)}{t.perTon}
-                  </td>
-                  <td className={`px-4 py-3 text-sm font-semibold ${theme === 'light' ? 'text-green-600' : 'text-green-400'}`}>
-                    RM{customer.totalValue.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* New Members Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* New Workers */}
-        <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-            {t_reports.newWorkers || 'New Workers'} ({newWorkers.length})
-          </h3>
-          {newWorkers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-                  <tr>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      {t_reports.workerName}
-                    </th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      Type
-                    </th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      {t_reports.joinDate || 'Join Date'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
-                  {newWorkers.map((worker) => (
-                    <tr key={worker.id} className={`${theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-700'}`}>
-                      <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                        {worker.name}
-                      </td>
-                      <td className={`px-4 py-3 text-sm`}>
-                        <span className={`px-2 py-1 rounded text-xs ${worker.type === 'Local' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                          {worker.type}
-                        </span>
-                      </td>
-                      <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {worker.created_at ? new Date(worker.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className={`text-center py-4 ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-              {t_reports.noNewWorkers || 'No new workers in this period'}
-            </p>
-          )}
-        </div>
-
-        {/* New Customers */}
-        <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow p-6`}>
-          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-gray-800' : 'text-white'}`}>
-            {t_reports.newCustomers || 'New Customers'} ({newCustomers.length})
-          </h3>
-          {newCustomers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}`}>
-                  <tr>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      {t_reports.customerName}
-                    </th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      Rate
-                    </th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium ${theme === 'light' ? 'text-gray-500' : 'text-gray-300'} uppercase`}>
-                      {t_reports.joinDate || 'Join Date'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200' : 'divide-gray-700'}`}>
-                  {newCustomers.map((customer) => (
-                    <tr key={customer.id} className={`${theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-700'}`}>
-                      <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                        {customer.name}
-                      </td>
-                      <td className={`px-4 py-3 text-sm font-semibold text-emerald-600`}>
-                        RM{customer.rate}
-                      </td>
-                      <td className={`px-4 py-3 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className={`text-center py-4 ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-              {t_reports.noNewCustomers || 'No new customers in this period'}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Dashboard Modal */}
-      {showDashboardModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-          onClick={() => setShowDashboardModal(false)}
+    <div
+      className="w-full h-full"
+      style={{ height: 'calc(100vh - 120px)', position: 'relative' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Back button */}
+      <div className={`mb-4 ${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-4`}>
+        <button
+          onClick={() => setActiveTab && setActiveTab('payroll')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+            theme === 'light'
+              ? 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+              : 'bg-gray-700 hover:bg-gray-600 text-white'
+          }`}
         >
-          <div
-            className={`relative w-full h-full max-w-7xl max-h-[90vh] rounded-lg shadow-2xl overflow-hidden ${
-              theme === 'light' ? 'bg-white' : 'bg-gray-800'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className={`flex items-center justify-between px-6 py-4 border-b ${
-              theme === 'light' ? 'border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600' : 'border-gray-700 bg-gradient-to-r from-purple-700 to-blue-700'
-            }`}>
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <i data-lucide="bar-chart-2" style={{width: 24, height: 24}}></i>
-                Interactive Dashboard
-              </h3>
-              <button
-                onClick={() => setShowDashboardModal(false)}
-                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
-                aria-label="Close"
-              >
-                <i data-lucide="x" style={{width: 24, height: 24}}></i>
-              </button>
-            </div>
+          <i data-lucide="arrow-left" style={{ width: 18, height: 18 }}></i>
+          <span>{t.back || 'Back to Payroll'}</span>
+        </button>
+      </div>
 
-            {/* Modal Content - Iframe */}
-            <div className="w-full h-full pb-16">
-              <iframe
-                src="management_dashboard.html"
-                className="w-full h-full border-0"
-                title="Management Dashboard"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <iframe
+        ref={iframeRef}
+        key="management-dashboard-iframe"
+        src="management_dashboard.html"
+        className="w-full border-0 rounded-lg"
+        style={{ height: 'calc(100vh - 200px)' }}
+        title="Management Dashboard"
+        sandbox="allow-scripts allow-same-origin allow-forms"
+      />
     </div>
   );
-});
+};
+
 
 // --- Applications View Component ---
-const ApplicationsView = memo(({ t, theme }) => {
+const ApplicationsView = memo(({ t, theme, addActivity }) => {
   const [applications, setApplications] = useState([]);
   const [currentFilter, setCurrentFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -2080,16 +1627,16 @@ const ApplicationsView = memo(({ t, theme }) => {
     setLoading(true);
     try {
       const response = await fetch('api/api_get_customer_applications.php?_=' + new Date().getTime());
-      if (!response.ok) throw new Error('Failed to fetch applications');
+      if (!response.ok) throw new Error(t.applicationsView.failedToFetchApplications);
       const data = await response.json();
       setApplications(data.applications || []);
     } catch (error) {
       console.error('Error loading applications:', error);
-      showToast('Error loading applications: ' + error.message, 'error');
+      showToast(t.applicationsView.errorLoadingApplications + ' ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadApplications();
@@ -2168,13 +1715,17 @@ const ApplicationsView = memo(({ t, theme }) => {
 
   const handleUpdateStatus = useCallback(async (id, newStatus) => {
     const isApprove = newStatus === 'approved';
-    if (!confirm(`Are you sure you want to ${isApprove ? 'approve' : 'reject'} this application?`)) {
+    if (!confirm(isApprove ? t.applicationsView.confirmApprove : t.applicationsView.confirmReject)) {
       return;
     }
 
+    // Get application name for activity log
+    const application = applications.find(app => app.id === id);
+    const appName = application ? application.name : 'Unknown';
+
     let rejectionReason = null;
     if (!isApprove) {
-      rejectionReason = prompt('Please provide a reason for rejection (optional):');
+      rejectionReason = prompt(t.applicationsView.enterRejectionReason);
     }
 
     try {
@@ -2191,20 +1742,29 @@ const ApplicationsView = memo(({ t, theme }) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
+        throw new Error(errorData.message || t.applicationsView.failedToUpdateStatus);
       }
 
       const result = await response.json();
-      showToast(result.message || 'Status updated successfully!', 'success');
+      showToast(result.message || t.applicationsView.statusUpdated, 'success');
+
+      // Add activity to recent activity log
+      if (addActivity) {
+        if (isApprove) {
+          addActivity('approveApplication', 'check-circle', appName);
+        } else {
+          addActivity('rejectApplication', 'x-circle', appName);
+        }
+      }
 
       setShowModal(false);
       setSelectedApp(null);
       loadApplications();
     } catch (error) {
       console.error('Error updating status:', error);
-      showToast('Error updating status: ' + error.message, 'error');
+      showToast(t.applicationsView.errorUpdatingStatus + ' ' + error.message, 'error');
     }
-  }, [loadApplications]);
+  }, [loadApplications, t, addActivity, applications]);
 
   const getStatusBadgeClass = (status) => {
     if (status === 'pending') return 'bg-yellow-100 text-yellow-800';
@@ -2212,6 +1772,15 @@ const ApplicationsView = memo(({ t, theme }) => {
     if (status === 'rejected') return 'bg-red-100 text-red-800';
     return 'bg-gray-100 text-gray-800';
   };
+
+  const getStatusText = (status) => {
+  const map = {
+    pending: t.applicationsView.pending,
+    approved: t.applicationsView.approved,
+    rejected: t.applicationsView.rejected,
+  };
+  return map[status.toLowerCase()] || status;
+};
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -2239,10 +1808,10 @@ const ApplicationsView = memo(({ t, theme }) => {
         <div className="flex justify-between items-center">
           <div>
             <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-              Customer Applications
+              {t.applicationsView.title}
             </h2>
             <p className={`mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-              Manage customer registration requests
+              {t.applicationsView.subtitle}
             </p>
           </div>
           <button
@@ -2250,7 +1819,7 @@ const ApplicationsView = memo(({ t, theme }) => {
             className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2"
           >
             <i data-lucide="refresh-cw" style={{ width: 18, height: 18 }}></i>
-            Refresh
+            {t.applicationsView.refresh}
           </button>
         </div>
       </div>
@@ -2260,10 +1829,10 @@ const ApplicationsView = memo(({ t, theme }) => {
         <div className="space-y-4">
           <div className="flex gap-4 flex-wrap">
             {[
-              { key: 'all', label: 'All Applications' },
-              { key: 'pending', label: 'Pending' },
-              { key: 'approved', label: 'Approved' },
-              { key: 'rejected', label: 'Rejected' }
+              { key: 'all', label: t.applicationsView.allApplications },
+              { key: 'pending', label: t.applicationsView.pending },
+              { key: 'approved', label: t.applicationsView.approved },
+              { key: 'rejected', label: t.applicationsView.rejected }
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -2288,7 +1857,7 @@ const ApplicationsView = memo(({ t, theme }) => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, email, contact, or location..."
+                placeholder={t.applicationsView.searchPlaceholder}
                 className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
                   theme === 'light'
                     ? 'border-gray-300 bg-white text-gray-900'
@@ -2307,12 +1876,12 @@ const ApplicationsView = memo(({ t, theme }) => {
                   : 'border-gray-600 bg-gray-700 text-white'
               }`}
             >
-              <option value="date-desc">Latest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="name-asc">Name (A-Z)</option>
-              <option value="name-desc">Name (Z-A)</option>
-              <option value="acres-desc">Acres (High-Low)</option>
-              <option value="acres-asc">Acres (Low-High)</option>
+              <option value="date-desc">{t.applicationsView.sortLatestFirst}</option>
+              <option value="date-asc">{t.applicationsView.sortOldestFirst}</option>
+              <option value="name-asc">{t.applicationsView.sortNameAsc}</option>
+              <option value="name-desc">{t.applicationsView.sortNameDesc}</option>
+              <option value="acres-desc">{t.applicationsView.sortAcresDesc}</option>
+              <option value="acres-asc">{t.applicationsView.sortAcresAsc}</option>
             </select>
 
             <button
@@ -2324,7 +1893,7 @@ const ApplicationsView = memo(({ t, theme }) => {
               }`}
             >
               <i data-lucide="filter" style={{ width: 18, height: 18 }}></i>
-              Advanced
+              {t.applicationsView.advanced}
             </button>
           </div>
 
@@ -2332,7 +1901,7 @@ const ApplicationsView = memo(({ t, theme }) => {
           {showAdvancedFilters && (
             <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
               <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Date From</label>
+                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{t.applicationsView.dateFrom}</label>
                 <input
                   type="date"
                   value={dateFrom}
@@ -2345,7 +1914,7 @@ const ApplicationsView = memo(({ t, theme }) => {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Date To</label>
+                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{t.applicationsView.dateTo}</label>
                 <input
                   type="date"
                   value={dateTo}
@@ -2358,7 +1927,7 @@ const ApplicationsView = memo(({ t, theme }) => {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Min Acres</label>
+                <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>{t.applicationsView.minAcres}</label>
                 <input
                   type="number"
                   value={minAcres}
@@ -2379,10 +1948,10 @@ const ApplicationsView = memo(({ t, theme }) => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         {[
-          { label: 'Total Applications', value: statistics.total, color: 'blue', icon: 'users' },
-          { label: 'Pending Review', value: statistics.pending, color: 'yellow', icon: 'clock' },
-          { label: 'Approved', value: statistics.approved, color: 'green', icon: 'check-circle' },
-          { label: 'Rejected', value: statistics.rejected, color: 'red', icon: 'x-circle' }
+          { label: t.applicationsView.totalApplications, value: statistics.total, color: 'blue', icon: 'users' },
+          { label: t.applicationsView.pendingReview, value: statistics.pending, color: 'yellow', icon: 'clock' },
+          { label: t.applicationsView.approved, value: statistics.approved, color: 'green', icon: 'check-circle' },
+          { label: t.applicationsView.rejected, value: statistics.rejected, color: 'red', icon: 'x-circle' }
         ].map(({ label, value, color, icon }) => (
           <div key={label} className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6`}>
             <div className="flex items-start justify-between">
@@ -2402,7 +1971,7 @@ const ApplicationsView = memo(({ t, theme }) => {
       <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg shadow-md p-6`}>
         <h3 className={`text-xl font-bold mb-6 flex items-center gap-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
           <i data-lucide="inbox" style={{ width: 24, height: 24 }}></i>
-          Applications List ({filteredApps.length})
+          {t.applicationsView.applicationsList} ({filteredApps.length})
         </h3>
 
         {loading ? (
@@ -2414,7 +1983,7 @@ const ApplicationsView = memo(({ t, theme }) => {
         ) : filteredApps.length === 0 ? (
           <div className="text-center py-12">
             <i data-lucide="inbox" style={{ width: 64, height: 64, color: '#9ca3af', margin: '0 auto 16px' }}></i>
-            <p className={`text-lg ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>No applications found</p>
+            <p className={`text-lg ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>{t.applicationsView.noApplicationsFound}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2427,18 +1996,18 @@ const ApplicationsView = memo(({ t, theme }) => {
                 <div className="flex justify-between items-start mb-4">
                   <h4 className={`text-lg font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{app.name}</h4>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(app.status)}`}>
-                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                    {getStatusText(app.status)}
                   </span>
                 </div>
 
                 <div className={`space-y-2 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
                   <div className="flex items-center gap-2">
                     <i data-lucide="mail" style={{ width: 16, height: 16 }}></i>
-                    <span>{app.email || 'No email'}</span>
+                    <span>{app.email || t.applicationsView.noEmail}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <i data-lucide="phone" style={{ width: 16, height: 16 }}></i>
-                    <span>{app.contact || 'No contact'}</span>
+                    <span>{app.contact || t.applicationsView.noContact}</span>
                   </div>
                   {app.location && (
                     <div className="flex items-center gap-2">
@@ -2449,13 +2018,13 @@ const ApplicationsView = memo(({ t, theme }) => {
                   {app.acres && (
                     <div className="flex items-center gap-2">
                       <i data-lucide="maximize" style={{ width: 16, height: 16 }}></i>
-                      <span>{parseFloat(app.acres).toFixed(2)} acres</span>
+                      <span>{parseFloat(app.acres).toFixed(2)} {t.applicationsView.acres}</span>
                     </div>
                   )}
                 </div>
 
                 <div className={`mt-4 pt-4 border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-600'} text-xs ${theme === 'light' ? 'text-gray-500' : 'text-gray-500'}`}>
-                  Applied: {formatDate(app.submitted_at)}
+                  {t.applicationsView.applied} {formatDate(app.submitted_at)}
                 </div>
               </div>
             ))}
@@ -2469,7 +2038,7 @@ const ApplicationsView = memo(({ t, theme }) => {
           <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
-                <h3 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>Application Details</h3>
+                <h3 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{t.applicationsView.applicationDetails}</h3>
                 <button onClick={() => setShowModal(false)} className={`${theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-gray-300'} transition`}>
                   <i data-lucide="x" style={{ width: 24, height: 24 }}></i>
                 </button>
@@ -2477,77 +2046,77 @@ const ApplicationsView = memo(({ t, theme }) => {
 
               <div className="space-y-6">
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Status</label>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.status}</label>
                   <div className="mt-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(selectedApp.status)}`}>
-                      {selectedApp.status.charAt(0).toUpperCase() + selectedApp.status.slice(1)}
+                      {getStatusText(selectedApp.status)}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Full Name</label>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.fullName}</label>
                   <p className={`mt-1 text-lg font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.name}</p>
                 </div>
 
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Email Address</label>
-                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.email || 'Not provided'}</p>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.emailAddress}</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.email || t.applicationsView.notProvided}</p>
                 </div>
 
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Contact Number</label>
-                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.contact || 'Not provided'}</p>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.contactNumber}</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.contact || t.applicationsView.notProvided}</p>
                 </div>
 
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Location</label>
-                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.location || 'Not provided'}</p>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.location}</label>
+                  <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.location || t.applicationsView.notProvided}</p>
                 </div>
 
                 {selectedApp.acres && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Acres</label>
-                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{parseFloat(selectedApp.acres).toFixed(2)} acres</p>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.acres}</label>
+                    <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{parseFloat(selectedApp.acres).toFixed(2)} {t.applicationsView.acres}</p>
                   </div>
                 )}
 
                 {selectedApp.company_name && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Company Name</label>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.companyName}</label>
                     <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.company_name}</p>
                   </div>
                 )}
 
                 {selectedApp.rate_requested && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Requested Rate</label>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.requestedRate}</label>
                     <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>RM {parseFloat(selectedApp.rate_requested).toFixed(2)}</p>
                   </div>
                 )}
 
                 <div>
-                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Application Date</label>
+                  <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.applicationDate}</label>
                   <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatDateTime(selectedApp.submitted_at)}</p>
                 </div>
 
                 {selectedApp.reviewed_at && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Reviewed At</label>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.reviewedAt}</label>
                     <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{formatDateTime(selectedApp.reviewed_at)}</p>
                   </div>
                 )}
 
                 {selectedApp.reviewed_by && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Reviewed By</label>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.reviewedBy}</label>
                     <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.reviewed_by}</p>
                   </div>
                 )}
 
                 {selectedApp.rejection_reason && (
                   <div>
-                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Rejection Reason</label>
+                    <label className={`text-sm font-semibold ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{t.applicationsView.rejectionReason}</label>
                     <p className={`mt-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{selectedApp.rejection_reason}</p>
                   </div>
                 )}
@@ -2559,14 +2128,14 @@ const ApplicationsView = memo(({ t, theme }) => {
                       className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2"
                     >
                       <i data-lucide="check" style={{ width: 20, height: 20 }}></i>
-                      Approve
+                      {t.applicationsView.approve}
                     </button>
                     <button
                       onClick={() => handleUpdateStatus(selectedApp.id, 'rejected')}
                       className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2"
                     >
                       <i data-lucide="x" style={{ width: 20, height: 20 }}></i>
-                      Reject
+                      {t.applicationsView.reject}
                     </button>
                   </div>
                 )}

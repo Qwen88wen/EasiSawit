@@ -26,24 +26,32 @@
   </script>
   
   <style>
+    /* === Layout Structure ===
+     * Header: Fixed at top, 64px height
+     * Sidebar: Fixed left, starts 64px from top
+     * Content: Flexible, adjusts based on sidebar width
+     */
+
     html {
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
     }
-    /* FIX: Prevent horizontal scrolling/overflow */
+
     body {
       overflow-x: hidden;
+      margin: 0;
+      padding: 0;
     }
+
+    /* Scroll optimization */
     .scroll-container {
       overflow-y: auto;
       will-change: transform;
     }
+
+    /* Performance optimizations */
     .optimized-card {
       contain: layout style paint;
-    }
-    .gpu-accelerated {
-      transform: translateZ(0);
-      backface-visibility: hidden;
     }
   </style>
 </head>
@@ -54,12 +62,12 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
   <script src="button_loading_utils.js?v=1.0"></script>
-  <script type="text/babel" src="translations.js?v=2.0"></script>
+  <script type="text/babel" src="translations.js?v=5.0"></script>
   <script type="text/babel" src="date_picker.js?v=1.6"></script>
-  <script type="text/babel" src="view_components.js?v=2.4"></script>
-  <script type="text/babel" src="modal_components.js?v=1.5"></script>
+  <script type="text/babel" src="view_components.js?v=6.0"></script>
+  <script type="text/babel" src="modal_components.js?v=2.0"></script>
   <script type="text/babel" src="app_components.js?v=1.7"></script>
-  <script type="text/babel" src="app_logic.js?v=2.1"></script>
+  <script type="text/babel" src="app_logic.js?v=6.0"></script>
 
 </body>
 </html>

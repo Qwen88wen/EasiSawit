@@ -1,4 +1,95 @@
+// --- GLOBAL SESSION EXPIRED HANDLER ---
+// Prevents multiple simultaneous redirects
+let isRedirecting = false;
+
+function handleSessionExpired() {
+    // Prevent duplicate calls
+    if (isRedirecting) {
+        console.log("[AUTH] Already redirecting, skipping duplicate call");
+        return;
+    }
+
+    isRedirecting = true;
+    console.log("[AUTH] Session expired, clearing storage and redirecting to login...");
+
+    // Clear all session-related storage BEFORE redirect
+    try {
+        sessionStorage.clear();
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("username");
+        localStorage.removeItem("fullName");
+    } catch (e) {
+        console.error("[AUTH] Error clearing storage:", e);
+    }
+
+    // CRITICAL FIX: Redirect IMMEDIATELY without setTimeout
+    // Using setTimeout was causing issues because:
+    // 1. Previous code cleared ALL timeouts (including the redirect timeout)
+    // 2. This caused the redirect to never execute
+    // 3. Result: infinite loop
+    //
+    // Direct redirect is safe because:
+    // - Storage is already cleared
+    // - isRedirecting flag prevents duplicate calls
+    // - replace() handles history correctly
+    console.log("[AUTH] Redirecting NOW to login.html...");
+    window.location.replace("login.html?expired=true");
+
+    // Note: Code after this line won't execute because redirect is immediate
+}
+
+
 const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
+
+// --- safeFetch: Universal fetch wrapper with error handling ---
+async function safeFetch(url, options = {}) {
+  try {
+    console.log("[FETCH] Calling:", url);
+    const response = await fetch(url, options);
+
+    // Handle 401 Unauthorized - session expired
+    if (response.status === 401) {
+      console.log("[FETCH] 401 Unauthorized - calling handleSessionExpired");
+      handleSessionExpired();
+      // CRITICAL FIX: Return immediately after handleSessionExpired()
+      // Don't throw - let the redirect happen cleanly
+      // Return a promise that never resolves to prevent further execution
+      return new Promise(() => {}); // Pending promise that never resolves
+    }
+
+    // Handle other HTTP errors
+    if (!response.ok) {
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        // Response is not JSON, try to get text
+        const text = await response.text();
+        throw new Error(text || `HTTP error! status: ${response.status}`);
+      }
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    // Check if response has content
+    const text = await response.text();
+
+    // If empty response, return empty object
+    if (!text || text.trim().length === 0) {
+      return {};
+    }
+
+    // Try to parse JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Response is not valid JSON:", text.substring(0, 200));
+      throw new Error("Invalid JSON response from server");
+    }
+  } catch (error) {
+    console.error("[FETCH] Error:", error);
+    throw error;
+  }
+}
 
 // --- Utility Hooks ---
 const useDebounce = (value, delay) => {
@@ -26,7 +117,15 @@ const usePagination = (data, pageSize) => {
     (page) => {
       const pageToSet = Math.max(1, Math.min(page, maxPage || page));
 
-      const hashParts = (window.location.hash || "#dashboard/1").split("/");
+      // FIXED: Don't set default hash if it's empty
+      // Only update hash if there's already a hash present
+      if (!window.location.hash) {
+        console.log("[PAGINATION] No hash present, skipping page update");
+        setCurrentPageInternal(pageToSet);
+        return;
+      }
+
+      const hashParts = window.location.hash.split("/");
       const currentTab = hashParts[0] || "#dashboard";
       const tabPart = currentTab.startsWith("#")
         ? currentTab
@@ -36,6 +135,7 @@ const usePagination = (data, pageSize) => {
       setCurrentPageInternal(pageToSet);
 
       if (window.location.hash !== newHash) {
+        console.log("[PAGINATION] Updating hash to:", newHash);
         window.history.replaceState(null, "", newHash);
       }
     },
@@ -50,7 +150,10 @@ const usePagination = (data, pageSize) => {
       }
     };
 
-    if (!window.location.hash.includes("/")) {
+    // FIXED: Only set current page if hash already exists
+    // Don't try to set page if there's no hash yet (waiting for auth)
+    if (window.location.hash && !window.location.hash.includes("/")) {
+      console.log("[PAGINATION] Hash exists but no page number, setting page");
       setCurrentPage(currentPage);
     }
 
@@ -111,140 +214,118 @@ const formatTimeAgo = (date, t_time) => {
   return t_time.minuteAgo;
 };
 
-// --- Helper Components ---
-const Navigation = memo(
+// --- Loading Component: Shown during authentication check ---
+const LoadingScreen = memo(({ theme }) => (
+  <div
+    className={`min-h-screen flex items-center justify-center ${
+      theme === "light" ? "bg-gray-100" : "bg-gray-900"
+    }`}
+  >
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-600"></div>
+      <p className={`mt-4 text-lg ${theme === "light" ? "text-gray-700" : "text-gray-300"}`}>
+        Verifying session...
+      </p>
+    </div>
+  </div>
+));
+
+// --- Header Component: Unified navigation with logo and controls ---
+const Header = memo(
   ({ t, theme, language, setLang, toggleTheme, handleLogout, setSidebarOpen }) => (
-    // --- LAYOUT FIX: Added fixed positioning and z-index ---
-    <nav
+    <header
       className={`${
         theme === "light" ? "bg-emerald-700" : "bg-gray-800"
-      } text-white shadow-lg gpu-accelerated fixed top-0 left-0 right-0 z-50`}
+      } text-white shadow-lg fixed top-0 left-0 right-0 z-50`}
+      style={{ height: "64px" }}
     >
-      <div className="max-w-7xl mx-auto px-2 sm:px-4">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 rounded hover:bg-emerald-600 transition"
-              title="Open Menu"
-            >
-              <i data-lucide="menu" style={{ width: 20, height: 20 }}></i>
-            </button>
-            <svg
-              className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"
-              viewBox="0 0 100 100"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="50" cy="50" r="45" fill="#10b981" />
-              <g transform="translate(50, 50)">
-                <ellipse cx="0" cy="-15" rx="8" ry="20" fill="#059669" />
-                <ellipse
-                  cx="-12"
-                  cy="-8"
-                  rx="8"
-                  ry="20"
-                  fill="#059669"
-                  transform="rotate(-60)"
-                />
-                <ellipse
-                  cx="12"
-                  cy="-8"
-                  rx="8"
-                  ry="20"
-                  fill="#059669"
-                  transform="rotate(60)"
-                />
-                <ellipse
-                  cx="-15"
-                  cy="5"
-                  rx="8"
-                  ry="20"
-                  fill="#047857"
-                  transform="rotate(-120)"
-                />
-                <ellipse
-                  cx="15"
-                  cy="5"
-                  rx="8"
-                  ry="20"
-                  fill="#047857"
-                  transform="rotate(120)"
-                />
-                <ellipse
-                  cx="-8"
-                  cy="15"
-                  rx="8"
-                  ry="18"
-                  fill="#047857"
-                  transform="rotate(-180)"
-                />
-                <ellipse
-                  cx="8"
-                  cy="15"
-                  rx="8"
-                  ry="18"
-                  fill="#047857"
-                  transform="rotate(180)"
-                />
-                <circle cx="0" cy="0" r="12" fill="#065f46" />
-                <rect
-                  x="-3"
-                  y="0"
-                  width="6"
-                  height="30"
-                  fill="#92400e"
-                  rx="2"
-                />
-              </g>
-            </svg>
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-xl font-bold truncate">
-                {t.appName}
-              </h1>
-              <p className="text-xs text-emerald-200 hidden sm:block">
-                {t.appSubtitle}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-            <select
-              onChange={(e) => setLang(e.target.value)}
-              value={language}
-              className="bg-emerald-600 text-white px-2 py-2 text-xs sm:text-sm rounded hover:bg-emerald-800 transition appearance-none"
-            >
-              <option value="en">EN</option>
-              <option value="ms">BM</option>
-              <option value="zh">中文</option>
-            </select>
-            <button
-              onClick={toggleTheme}
-              className="flex items-center bg-emerald-600 p-2 rounded hover:bg-emerald-800 transition"
-            >
-              <i
-                data-lucide={theme === "light" ? "moon" : "sun"}
-                style={{ width: 16, height: 16 }}
-              ></i>
-            </button>
-            <span className="text-xs sm:text-sm hidden md:inline">
-              {t.adminUser}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-1 bg-emerald-600 px-2 sm:px-3 py-2 rounded hover:bg-emerald-800 transition"
-            >
-              <i data-lucide="log-out" style={{ width: 16, height: 16 }}></i>
-              <span className="text-xs sm:text-sm hidden sm:inline">
-                {t.logout}
-              </span>
-            </button>
+      <div className="h-full px-6 flex justify-between items-center gap-4">
+        {/* Left: Logo Section */}
+        <div className="flex items-center space-x-3">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden h-9 w-9 flex items-center justify-center rounded hover:bg-emerald-600 transition"
+            title="Open Menu"
+          >
+            <i data-lucide="menu" style={{ width: 20, height: 20 }}></i>
+          </button>
+
+          {/* Logo */}
+          <svg
+            className="w-9 h-9 flex-shrink-0"
+            viewBox="0 0 100 100"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="50" cy="50" r="45" fill="#10b981" />
+            <g transform="translate(50, 50)">
+              <ellipse cx="0" cy="-15" rx="8" ry="20" fill="#059669" />
+              <ellipse cx="-12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(-60)" />
+              <ellipse cx="12" cy="-8" rx="8" ry="20" fill="#059669" transform="rotate(60)" />
+              <ellipse cx="-15" cy="5" rx="8" ry="20" fill="#047857" transform="rotate(-120)" />
+              <ellipse cx="15" cy="5" rx="8" ry="20" fill="#047857" transform="rotate(120)" />
+              <ellipse cx="-8" cy="15" rx="8" ry="18" fill="#047857" transform="rotate(-180)" />
+              <ellipse cx="8" cy="15" rx="8" ry="18" fill="#047857" transform="rotate(180)" />
+              <circle cx="0" cy="0" r="12" fill="#065f46" />
+              <rect x="-3" y="0" width="6" height="30" fill="#92400e" rx="2" />
+            </g>
+          </svg>
+
+          {/* App Title */}
+          <div>
+            <h1 className="text-xl font-bold">{t.appName}</h1>
+            <p className="text-xs text-emerald-200 hidden sm:block">
+              {t.appSubtitle}
+            </p>
           </div>
         </div>
+
+        {/* Right: Navigation Controls */}
+        <div className="flex items-center space-x-3">
+          {/* Language Selector */}
+          <select
+            onChange={(e) => setLang(e.target.value)}
+            value={language}
+            className="h-9 px-3 rounded bg-emerald-600 text-white hover:bg-emerald-800 transition text-sm"
+          >
+            <option value="en">EN</option>
+            <option value="ms">BM</option>
+            <option value="zh">中文</option>
+          </select>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="h-9 w-9 flex items-center justify-center rounded bg-emerald-600 hover:bg-emerald-800 transition"
+            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+          >
+            <i
+              data-lucide={theme === "light" ? "moon" : "sun"}
+              style={{ width: 16, height: 16 }}
+            ></i>
+          </button>
+
+          {/* Admin User Label */}
+          <span className="text-sm hidden md:inline">
+            {t.adminUser}
+          </span>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="h-9 px-3 flex items-center space-x-1 rounded bg-emerald-600 hover:bg-emerald-800 transition"
+          >
+            <i data-lucide="log-out" style={{ width: 16, height: 16 }}></i>
+            <span className="text-sm hidden sm:inline">{t.logout}</span>
+          </button>
+        </div>
       </div>
-    </nav>
+    </header>
   )
 );
 
+
+// --- Sidebar Component: Below header, fixed left side ---
 const Sidebar = memo(
   ({ t, theme, sidebarOpen, setSidebarOpen, activeTab, setActiveTab }) => {
     useEffect(() => {
@@ -255,11 +336,12 @@ const Sidebar = memo(
 
     return (
       <aside
-        className={`fixed left-0 top-16 bottom-0 transition-all duration-300 z-40 ${
+        className={`fixed left-0 bottom-0 transition-all duration-300 z-40 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } w-64 md:translate-x-0 ${sidebarOpen ? "md:w-64" : "md:w-20"} ${
           theme === "light" ? "bg-white" : "bg-gray-800"
-        } shadow-lg gpu-accelerated`}
+        } shadow-lg`}
+        style={{ top: '64px' }}
       >
         <div className="p-4">
           <button
@@ -398,9 +480,13 @@ const EasiSawit = ({ translations }) => {
   }, []);
 
   // --- State ---
-  const [activeTab, setActiveTab] = useState(
-    window.location.hash.split("/")[0].substring(1) || "dashboard"
-  );
+  // CRITICAL FIX: Add authentication state management
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // FIXED: Don't initialize activeTab from hash immediately
+  // Let the useEffect handle it after session verification
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(() => {
     try {
@@ -415,7 +501,9 @@ const EasiSawit = ({ translations }) => {
       window.matchMedia("(prefers-color-scheme: dark)").matches;
     return prefersDark ? "dark" : "light";
   });
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState(() => {
+    return localStorage.getItem('language') || 'en';
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [workerTypeFilter, setWorkerTypeFilter] = useState("All Types");
@@ -511,26 +599,17 @@ const EasiSawit = ({ translations }) => {
   // --- NEW: Activity Logger ---
   const addActivity = useCallback(
     (key, icon, ...args) => {
-      const t_log = translations[language].activityLog;
-      let text = t_log[key] || "Unknown action";
-
-      // Replace placeholders
-      if (args.length > 0) {
-        args.forEach((arg) => {
-          text = text.replace("%s", arg);
-        });
-      }
-
       const newActivity = {
         id: Date.now(),
-        text,
+        key,
+        args,
         icon,
         time: new Date(),
       };
       // Add to start of array and cap at 5
       setRecentActivity((prev) => [newActivity, ...prev.slice(0, 4)]);
     },
-    [language, translations]
+    []
   );
 
   const removeActivity = useCallback((activityId) => {
@@ -555,7 +634,19 @@ const EasiSawit = ({ translations }) => {
       return next;
     });
   }, []);
-  const setLang = useCallback((lang) => setLanguage(lang), []);
+  const setLang = useCallback((lang) => {
+    setLanguage(lang);
+    // Save to localStorage for management dashboard
+    localStorage.setItem('language', lang);
+    // Notify iframe (management dashboard) about language change
+    const iframe = document.querySelector('iframe[src="management_dashboard.html"]');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: 'languageChange',
+        language: lang
+      }, '*');
+    }
+  }, []);
 
   // --- NEW: Handle logout ---
   const handleLogout = useCallback(async () => {
@@ -566,7 +657,9 @@ const EasiSawit = ({ translations }) => {
       });
       if (response.ok) {
         sessionStorage.clear();
-        window.location.href = "login.html";
+        localStorage.clear();
+        // CRITICAL FIX: Use .replace() to prevent back button issues
+        window.location.replace("login.html");
       } else {
         alert("Failed to logout. Please try again.");
       }
@@ -605,570 +698,382 @@ const EasiSawit = ({ translations }) => {
     setOriginalEditingWorkLog(null);
   }, []);
 
-  // --- CRUD Callbacks ---
-  // Workers
-  const fetchWorkers = useCallback(() => {
-    console.log("Fetching workers...");
-    return fetch(`${API_URL}/api_worker.php?_=${new Date().getTime()}`)
-      .then((response) =>
-        response.ok
-          ? response.json()
-          : Promise.reject("Network error fetching workers")
-      )
-      .then((data) => {
-        console.log("Workers fetched:", data);
-        setWorkers(data || []);
-      })
-      .catch((error) => {
-        console.error("Error in fetchWorkers:", error);
-        alert(`Failed to refresh worker list: ${error.message || error}`);
-      });
-  }, [API_URL]);
+ 
+const fetchWorkers = useCallback(() => {
+  console.log("Fetching workers...");
+  return safeFetch(`${API_URL}/api_worker.php?_=${Date.now()}`)
+    .then((data) => {
+      console.log("Workers fetched:", data);
+      setWorkers(data || []);
+    });
+}, [API_URL]);
 
-  const handleAddNewWorker = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (!newWorker.name) return alert("Worker name is required.");
+const fetchCustomers = useCallback(() => {
+  console.log("Fetching customers...");
+  return safeFetch(`${API_URL}/api_get_customer.php?_=${Date.now()}`)
+    .then((data) => {
+      console.log("Customers fetched:", data);
+      setCustomers(data || []);
+    })
+    .catch((error) => {
+      console.error("Error fetching customers:", error);
+      setCustomers([]);
+    });
+}, [API_URL]);
 
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
+const fetchArchivedCustomers = useCallback(() => {
+  console.log("Fetching archived customers...");
+  return safeFetch(`${API_URL}/api_get_archived_customers.php?_=${Date.now()}`)
+    .then((data) => {
+      console.log("Archived customers fetched:", data);
+      setArchivedCustomers(data || []);
+    })
+    .catch((error) => {
+      console.error("Error fetching archived customers:", error);
+      setArchivedCustomers([]);
+    });
+}, [API_URL]);
+
+const fetchWorkLogs = useCallback(() => {
+  console.log("Fetching work logs...");
+  return safeFetch(`${API_URL}/api_get_worklogs.php?_=${Date.now()}`)
+    .then((data) => {
+      console.log("Work logs fetched:", data);
+      setWorkLogs(data || []);
+    })
+    .catch((error) => {
+      console.error("Error fetching work logs:", error);
+      setWorkLogs([]);
+    });
+}, [API_URL]);
+
+const handleAddNewWorker = useCallback(
+  (e) => {
+    e.preventDefault();
+    if (!newWorker.name) return alert("Worker name is required.");
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState =
+      window.setButtonLoading && submitBtn
         ? window.setButtonLoading(submitBtn, "Saving...")
         : null;
 
-      fetch(`${API_URL}/api_add_worker.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newWorker),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Add worker failed")
-                )
-        )
-        .then((data) => {
-          console.log("Add Worker Success:", data);
-          setIsAddWorkerModalOpen(false);
-          addActivity("addWorker", "user-plus", newWorker.name); // --- ADD ACTIVITY ---
-          setNewWorker({
-            name: "",
-            type: "Local",
-            epf: "",
-            permit: "",
-            status: "Active",
-            identity_number: "",
-            identity_type: "",
-            age: "",
-            marital_status: "",
-            children_count: 0,
-            spouse_working: 0,
-            zakat_monthly: 0,
-          });
-          fetchWorkers();
-        })
-        .catch((error) => {
-          console.error("Add Worker Error:", error);
-          alert(`Error adding worker: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [newWorker, API_URL, fetchWorkers, addActivity]
-  );
+    safeFetch(`${API_URL}/api_add_worker.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newWorker),
+    }).then((data) => {
+      console.log("Add Worker Success:", data);
 
-  const handleDeleteWorker = useCallback(
-    (workerId, workerName) => {
-      if (!window.confirm(`Delete "${workerName}" (ID: ${workerId})?`)) return;
-      fetch(`${API_URL}/api_delete_worker.php?id=${workerId}`, {
-        method: "DELETE",
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Delete worker failed")
-                )
-        )
-        .then((data) => {
-          console.log("Delete Worker Success:", data);
-          addActivity("deleteWorker", "user-minus", workerName); // --- ADD ACTIVITY ---
-          fetchWorkers();
-        })
-        .catch((error) => {
-          console.error("Delete Worker Error:", error);
-          alert(`Error deleting worker: ${error}`);
-        });
-    },
-    [API_URL, fetchWorkers, addActivity]
-  );
+      setIsAddWorkerModalOpen(false);
+      addActivity("addWorker", "user-plus", newWorker.name);
 
-  const handleEditWorkerClick = useCallback((worker) => {
-    setOriginalEditingWorker(worker); // --- FIX: Store original
-    setEditingWorker({ ...worker }); // --- FIX: Store copy
-    setIsEditWorkerModalOpen(true);
-  }, []);
+      setNewWorker({
+        name: "",
+        type: "Local",
+        epf: "",
+        permit: "",
+        status: "Active",
+        identity_number: "",
+        identity_type: "",
+        age: "",
+        marital_status: "",
+        children_count: 0,
+        spouse_working: 0,
+        zakat_monthly: 0,
+      });
 
-  const handleUpdateWorker = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (!editingWorker || !editingWorker.name)
-        return alert("Worker data is missing.");
+      fetchWorkers();
 
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
+      if (loadingState) loadingState.reset();
+    });
+  },
+  [newWorker, API_URL, fetchWorkers, addActivity]
+);
+
+ const handleEditWorkerClick = useCallback((worker) => {
+  setOriginalEditingWorker(worker);
+  setEditingWorker({ ...worker });
+  setIsEditWorkerModalOpen(true);
+}, []);
+
+const handleUpdateWorker = useCallback(
+  (e) => {
+    e.preventDefault();
+    if (!editingWorker || !editingWorker.name)
+      return alert("Worker data is missing.");
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState =
+      window.setButtonLoading && submitBtn
         ? window.setButtonLoading(submitBtn, "Updating...")
         : null;
 
-      fetch(`${API_URL}/api_update_worker.php`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingWorker),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Update worker failed")
-                )
-        )
-        .then((data) => {
-          console.log("Update Worker Success:", data);
-          // --- FIX: Only add activity if rows actually changed ---
-          if (data.changed === true) {
-            addActivity("updateWorker", "user-check", editingWorker.name);
-          }
-          closeEditWorkerModal(); // --- FIX: Use close handler
-          fetchWorkers();
-        })
-        .catch((error) => {
-          console.error("Update Worker Error:", error);
-          alert(`Error updating worker: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [editingWorker, API_URL, fetchWorkers, addActivity, closeEditWorkerModal]
-  );
+    safeFetch(`${API_URL}/api_update_worker.php`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingWorker),
+    }).then((data) => {
+      console.log("Update Worker Success:", data);
 
-  // Work Logs
-  const fetchWorkLogs = useCallback(() => {
-    console.log("Fetching work logs...");
-    return fetch(`${API_URL}/api_get_worklogs.php?_=${new Date().getTime()}`)
-      .then((response) =>
-        response.ok
-          ? response.json()
-          : Promise.reject("Network error fetching work logs")
-      )
-      .then((data) => {
-        console.log("Work logs fetched:", data);
-        const parsedLogs = (data || []).map((log) => ({
-          id: log.id,
-          log_date: log.log_date,
-          worker_id: parseInt(log.worker_id, 10), // --- FIX: Ensure IDs are numbers for comparison
-          worker_name: log.worker_name,
-          customer_id: parseInt(log.customer_id, 10), // --- FIX: Ensure IDs are numbers for comparison
-          customer_name: log.customer_name,
-          tons: log.tons,
-          rate_per_ton: log.rate_per_ton,
-        }));
-        setWorkLogs(parsedLogs);
-      })
-      .catch((error) => {
-        console.error("Error fetching work logs:", error);
-        setWorkLogs([]);
-      });
-  }, [API_URL]);
-
-  const handleAddWorkLog = useCallback(
-    (e) => {
-      e.preventDefault();
-      console.log("Attempting to add work log with data:", newWorkLog);
-
-      // Validate required fields
-      if (
-        !newWorkLog.log_date ||
-        !newWorkLog.worker_id ||
-        !newWorkLog.customer_id ||
-        !newWorkLog.tons ||
-        !newWorkLog.rate_per_ton
-      )
-        return alert("All work log fields are required.");
-
-      // Validate date is not in the future (Malaysia timezone)
-      const now = new Date();
-      const malaysiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
-      const today = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate());
-      const selectedDate = new Date(newWorkLog.log_date + 'T00:00:00');
-
-      if (selectedDate > today) {
-        return alert("操作失败：工作日志日期不能晚于当前日期。\nOperation failed: Work log date cannot be later than current date.");
+      if (data.changed === true) {
+        addActivity("updateWorker", "user-check", editingWorker.name);
       }
 
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
-        ? window.setButtonLoading(submitBtn, "Saving...")
-        : null;
+      closeEditWorkerModal();
+      fetchWorkers();
 
-      fetch(`${API_URL}/api_add_worklog.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newWorkLog),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Add work log failed")
-                )
-        )
-        .then((data) => {
-          console.log("Add Work Log Success:", data);
-          setIsAddWorkLogModalOpen(false);
-          addActivity("addWorkLog", "file-plus", newWorkLog.tons); // --- ADD ACTIVITY ---
-          setNewWorkLog({
-            log_date: "",
-            worker_id: "",
-            customer_id: "",
-            tons: "",
-            rate_per_ton: "",
-          });
-          // Reset filters to show all work logs including the new one
-          setWorkLogWorkerFilter("All");
-          setWorkLogCustomerFilter("All");
-          // Refresh all related data
-          fetchWorkLogs();
-          fetchWorkers();
-          fetchCustomers();
-        })
-        .catch((error) => {
-          console.error("Add Work Log Error:", error);
-          alert(`Error adding work log: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [newWorkLog, API_URL, fetchWorkLogs, fetchWorkers, fetchCustomers, addActivity, setWorkLogWorkerFilter, setWorkLogCustomerFilter]
-  );
+      if (loadingState) loadingState.reset();
+    });
+  },
+  [editingWorker, API_URL, fetchWorkers, addActivity, closeEditWorkerModal]
+);
+
+const handleDeleteWorker = useCallback(
+  (workerId, workerName) => {
+    if (!window.confirm(`Delete worker "${workerName}" (ID: ${workerId})?`))
+      return;
+
+    safeFetch(`${API_URL}/api_delete_worker.php?id=${workerId}`, {
+      method: "DELETE",
+    })
+      .then((data) => {
+        console.log("Delete Worker Success:", data);
+        addActivity("deleteWorker", "user-minus", workerName);
+        fetchWorkers();
+      });
+  },
+  [API_URL, fetchWorkers, addActivity]
+);
+
+const handleAddWorkLog = useCallback(
+  (e) => {
+    e.preventDefault();
+    if (!newWorkLog.worker_id || !newWorkLog.customer_id || !newWorkLog.tons)
+      return alert("Please fill in all required fields.");
+
+    // Find submit button and set loading state
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState = window.setButtonLoading && submitBtn
+      ? window.setButtonLoading(submitBtn, "Saving...")
+      : null;
+
+    safeFetch(`${API_URL}/api_add_worklog.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newWorkLog),
+    }).then((data) => {
+      console.log("Add Work Log Success:", data);
+      setIsAddWorkLogModalOpen(false);
+      addActivity("addWorkLog", "file-plus", newWorkLog.tons);
+      setNewWorkLog({
+        log_date: "",
+        worker_id: "",
+        customer_id: "",
+        tons: "",
+        rate_per_ton: "",
+      });
+      // Reset filters to show all work logs including the new one
+      setWorkLogWorkerFilter("All");
+      setWorkLogCustomerFilter("All");
+      // Refresh all related data
+      fetchWorkLogs();
+      fetchWorkers();
+      fetchCustomers();
+
+      if (loadingState) loadingState.reset();
+    });
+  },
+  [newWorkLog, API_URL, fetchWorkLogs, fetchWorkers, fetchCustomers, addActivity]
+);
+
 
   const handleDeleteWorkLog = useCallback(
     (workLogId) => {
       if (!window.confirm(`Delete work log ID: ${workLogId}?`)) return;
-      fetch(`${API_URL}/api_delete_worklog.php?id=${workLogId}`, {
+      safeFetch(`${API_URL}/api_delete_worklog.php?id=${workLogId}`, {
         method: "DELETE",
       })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Delete work log failed")
-                )
-        )
         .then((data) => {
           console.log("Delete Work Log Success:", data);
           addActivity("deleteWorkLog", "file-minus", workLogId); // --- ADD ACTIVITY ---
           fetchWorkLogs();
-        })
-        .catch((error) => {
-          console.error("Delete Work Log Error:", error);
-          alert(`Error deleting work log: ${error}`);
         });
     },
     [API_URL, fetchWorkLogs, addActivity]
   );
 
-  const handleEditWorkLogClick = useCallback((workLog) => {
-    setOriginalEditingWorkLog(workLog); // --- FIX: Store original
-    setEditingWorkLog({ ...workLog }); // --- FIX: Store copy
-    setIsEditWorkLogModalOpen(true);
-  }, []);
+const handleUpdateWorkLog = useCallback(
+  (e) => {
+    e.preventDefault();
 
-  const handleUpdateWorkLog = useCallback(
-    (e) => {
-      e.preventDefault();
+    // validate omitted...
 
-      // Validate required fields
-      if (
-        !editingWorkLog ||
-        !editingWorkLog.log_date ||
-        !editingWorkLog.worker_id ||
-        !editingWorkLog.customer_id ||
-        !editingWorkLog.tons ||
-        !editingWorkLog.rate_per_ton
-      )
-        return alert("All work log fields are required.");
-
-      // Validate date is not in the future (Malaysia timezone)
-      const now = new Date();
-      const malaysiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
-      const today = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate());
-      const selectedDate = new Date(editingWorkLog.log_date + 'T00:00:00');
-
-      if (selectedDate > today) {
-        return alert("操作失败：工作日志日期不能晚于当前日期。\nOperation failed: Work log date cannot be later than current date.");
-      }
-
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState =
+      window.setButtonLoading && submitBtn
         ? window.setButtonLoading(submitBtn, "Updating...")
         : null;
 
-      fetch(`${API_URL}/api_update_worklog.php`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingWorkLog),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Update work log failed")
-                )
-        )
-        .then((data) => {
-          console.log("Update Work Log Success:", data);
-          // --- FIX: Only add activity if rows actually changed ---
-          if (data.changed === true) {
-            addActivity("updateWorkLog", "file-check", editingWorkLog.id);
-          }
-          closeEditWorkLogModal(); // --- FIX: Use close handler
-          fetchWorkLogs();
-        })
-        .catch((error) => {
-          console.error("Update Work Log Error:", error);
-          alert(`Error updating work log: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [editingWorkLog, API_URL, fetchWorkLogs, addActivity, closeEditWorkLogModal]
-  );
-
-  // Customers
-  const fetchCustomers = useCallback(() => {
-    console.log("Fetching customers...");
-    return fetch(`${API_URL}/api_get_customer.php?_=${new Date().getTime()}`)
-      .then((response) =>
-        response.ok
-          ? response.json()
-          : Promise.reject("Network error fetching customers")
-      )
+    safeFetch(`${API_URL}/api_update_worklog.php`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingWorkLog),
+    })
       .then((data) => {
-        console.log("Customers fetched:", data);
-        setCustomers(data || []);
+        console.log("Update Work Log Success:", data);
+
+        if (data.changed === true) {
+          addActivity("updateWorkLog", "file-check", editingWorkLog.id);
+        }
+
+        closeEditWorkLogModal();
+        fetchWorkLogs();
       })
-      .catch((error) => {
-        console.error("Error fetching customers:", error);
+      .finally(() => {
+        if (loadingState) loadingState.reset();
       });
-  }, [API_URL]);
+  },
+  [editingWorkLog, API_URL, fetchWorkLogs, addActivity, closeEditWorkLogModal]
+);
 
-  const fetchArchivedCustomers = useCallback(() => {
-    console.log("Fetching archived customers...");
-    return fetch(`${API_URL}/api_get_archived_customers.php?_=${new Date().getTime()}`)
-      .then((response) =>
-        response.ok
-          ? response.json()
-          : Promise.reject("Network error fetching archived customers")
-      )
-      .then((data) => {
-        console.log("Archived customers fetched:", data);
-        setArchivedCustomers(data || []);
-      })
-      .catch((error) => {
-        console.error("Error fetching archived customers:", error);
-      });
-  }, [API_URL]);
+const handleEditWorkLogClick = useCallback((workLog) => {
+  setOriginalEditingWorkLog(workLog);
+  setEditingWorkLog({ ...workLog });
+  setIsEditWorkLogModalOpen(true);
+}, []);
 
-  const handleAddCustomer = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (!newCustomer.name || !newCustomer.rate)
-        return alert("Customer name and rate are required.");
-
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
-        ? window.setButtonLoading(submitBtn, "Saving...")
-        : null;
-
-      fetch(`${API_URL}/api_add_customer.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCustomer),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Add customer failed")
-                )
-        )
-        .then((data) => {
-          console.log("Add Customer Success:", data);
-          setIsAddCustomerModalOpen(false);
-          addActivity("addCustomer", "briefcase", newCustomer.name); // --- ADD ACTIVITY ---
-          setNewCustomer({ name: "", contact: "", rate: "", remark: "", remark2: "" });
-          fetchCustomers();
-        })
-        .catch((error) => {
-          console.error("Add Customer Error:", error);
-          alert(`Error adding customer: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [newCustomer, API_URL, fetchCustomers, addActivity]
-  );
-
-  const handleEditCustomerClick = useCallback((customer) => {
+const handleEditCustomerClick = useCallback((customer) => {
     setOriginalEditingCustomer(customer); // --- FIX: Store original
     setEditingCustomer({ ...customer }); // --- FIX: Store copy
     setIsEditCustomerModalOpen(true);
   }, []);
 
-  const handleUpdateCustomer = useCallback(
-    (e) => {
-      e.preventDefault();
-      if (!editingCustomer || !editingCustomer.name || !editingCustomer.rate)
-        return alert("Customer name and rate are required.");
+const handleAddCustomer = useCallback(
+  (e) => {
+    e.preventDefault();
+    if (!newCustomer.name || !newCustomer.rate)
+      return alert("Customer name and rate are required.");
 
-      // Find submit button and set loading state
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-      const loadingState = window.setButtonLoading && submitBtn
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState =
+      window.setButtonLoading && submitBtn
+        ? window.setButtonLoading(submitBtn, "Saving...")
+        : null;
+
+    safeFetch(`${API_URL}/api_add_customer.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newCustomer),
+    }).then((data) => {
+      console.log("Add Customer Success:", data);
+
+      setIsAddCustomerModalOpen(false);
+      addActivity("addCustomer", "briefcase", newCustomer.name);
+
+      setNewCustomer({
+        name: "",
+        contact: "",
+        rate: "",
+        remark: "",
+        remark2: "",
+      });
+
+      fetchCustomers();
+
+      if (loadingState) loadingState.reset();
+    });
+  },
+  [newCustomer, API_URL, fetchCustomers, addActivity]
+);
+
+ const handleUpdateCustomer = useCallback(
+  (e) => {
+    e.preventDefault();
+    if (!editingCustomer || !editingCustomer.name || !editingCustomer.rate)
+      return alert("Customer name and rate are required.");
+
+    console.log('[UPDATE CUSTOMER] Sending data:', editingCustomer);
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const loadingState =
+      window.setButtonLoading && submitBtn
         ? window.setButtonLoading(submitBtn, "Updating...")
         : null;
 
-      fetch(`${API_URL}/api_update_customer.php`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingCustomer),
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Update customer failed")
-                )
-        )
-        .then((data) => {
-          console.log("Update Customer Success:", data);
-          // --- FIX: Only add activity if rows actually changed ---
-          if (data.changed === true) {
-            addActivity("updateCustomer", "briefcase", editingCustomer.name);
-          }
-          closeEditCustomerModal(); // --- FIX: Use close handler
-          fetchCustomers();
-        })
-        .catch((error) => {
-          console.error("Update Customer Error:", error);
-          alert(`Error updating customer: ${error}`);
-        })
-        .finally(() => {
-          if (loadingState) loadingState.reset();
-        });
-    },
-    [
-      editingCustomer,
-      API_URL,
-      fetchCustomers,
-      addActivity,
-      closeEditCustomerModal,
-    ]
-  );
+    safeFetch(`${API_URL}/api_update_customer.php`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingCustomer),
+    })
+      .then((data) => {
+        console.log("Update Customer Success:", data);
 
-  const handleDeleteCustomer = useCallback(
-    (customerId, customerName) => {
-      if (
-        !window.confirm(
-          `Delete customer "${customerName}" (ID: ${customerId})?`
-        )
-      )
-        return;
-      fetch(`${API_URL}/api_delete_customer.php?id=${customerId}`, {
-        method: "DELETE",
-      })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Delete customer failed")
-                )
-        )
-        .then((data) => {
-          console.log("Delete Customer Success:", data);
-          addActivity("deleteCustomer", "briefcase", customerName); // --- ADD ACTIVITY ---
-          fetchCustomers();
-        })
-        .catch((error) => {
-          console.error("Delete Customer Error:", error);
-          alert(`Error deleting customer: ${error}`);
-        });
-    },
-    [API_URL, fetchCustomers, addActivity]
-  );
+        if (data.changed === true) {
+          addActivity("updateCustomer", "briefcase", editingCustomer.name);
+        }
 
-  const handleReactivateCustomer = useCallback(
-    (customerId, customerName) => {
-      if (
-        !window.confirm(
-          `Reactivate customer "${customerName}"? This will set their last purchase date to today.`
-        )
-      )
-        return;
-      fetch(`${API_URL}/api_reactivate_customer.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_id: customerId }),
+        closeEditCustomerModal();
+        fetchCustomers();
       })
-        .then((response) =>
-          response.ok
-            ? response.json()
-            : response
-                .json()
-                .then((err) =>
-                  Promise.reject(err.message || "Reactivate customer failed")
-                )
-        )
-        .then((data) => {
-          console.log("Reactivate Customer Success:", data);
-          addActivity("reactivateCustomer", "briefcase", customerName);
-          fetchCustomers();
-          fetchArchivedCustomers();
-        })
-        .catch((error) => {
-          console.error("Reactivate Customer Error:", error);
-          alert(`Error reactivating customer: ${error}`);
-        });
-    },
-    [API_URL, fetchCustomers, fetchArchivedCustomers, addActivity]
-  );
+      .finally(() => {
+        if (loadingState) loadingState.reset();
+      });
+  },
+  [
+    editingCustomer,
+    API_URL,
+    fetchCustomers,
+    addActivity,
+    closeEditCustomerModal,
+  ]
+);
+const handleDeleteCustomer = useCallback(
+  (customerId, customerName) => {
+    if (
+      !window.confirm(
+        `Delete customer "${customerName}" (ID: ${customerId})?`
+      )
+    )
+      return;
+
+    safeFetch(`${API_URL}/api_delete_customer.php?id=${customerId}`, {
+      method: "DELETE",
+    })
+      .then((data) => {
+        console.log("Delete Customer Success:", data);
+        addActivity("deleteCustomer", "briefcase", customerName);
+        fetchCustomers();
+      });
+  },
+  [API_URL, fetchCustomers, addActivity]
+);
+
+
+ const handleReactivateCustomer = useCallback(
+  (customerId, customerName) => {
+    if (
+      !window.confirm(
+        `Reactivate customer "${customerName}"? This will set their last purchase date to today.`
+      )
+    )
+      return;
+
+    safeFetch(`${API_URL}/api_reactivate_customer.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customer_id: customerId }),
+    })
+      .then((data) => {
+        console.log("Reactivate Customer Success:", data);
+        addActivity("reactivateCustomer", "briefcase", customerName);
+        fetchCustomers();
+        fetchArchivedCustomers();
+      });
+  },
+  [API_URL, fetchCustomers, fetchArchivedCustomers, addActivity]
+);
+
 
   useEffect(() => {
     window.handleDeleteCustomer = handleDeleteCustomer;
@@ -1179,62 +1084,53 @@ const EasiSawit = ({ translations }) => {
     };
   }, [handleDeleteCustomer]);
 
-  // Payroll
-  const handleRunPayrollCalculation = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/api_calculate_payroll.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          month: payrollMonth,
-          year: payrollYear,
-          worker_type: payrollWorkerType,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Network error calculating payroll"
-        );
-      }
-      const data = await response.json();
-      console.log("Payroll Calculation Success:", data);
-      addActivity("runPayroll", "calculator", payrollMonth, payrollYear); // --- ADD ACTIVITY ---
-      setPayrollSummary(data.payroll_summary);
-      setCurrentRunId(data.run_id);
-    } catch (error) {
-      console.error("Payroll Calculation Error:", error);
-      alert(`Error calculating payroll: ${error.message || error}`);
-      setPayrollSummary(null);
-      setCurrentRunId(null);
-    }
-  }, [API_URL, payrollMonth, payrollYear, payrollWorkerType, addActivity]);
+//payroll
+const handleRunPayrollCalculation = useCallback(async () => {
+  try {
+    const data = await safeFetch(`${API_URL}/api_calculate_payroll.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        month: payrollMonth,
+        year: payrollYear,
+        worker_type: payrollWorkerType,
+      }),
+    });
+
+    console.log("Payroll Calculation Success:", data);
+
+    addActivity("runPayroll", "calculator", payrollMonth, payrollYear);
+    setPayrollSummary(data.payroll_summary);
+    setCurrentRunId(data.run_id);
+
+  } catch (error) {
+    console.error("Payroll Calculation Error:", error);
+    alert(`Error calculating payroll: ${error.message || error}`);
+    setPayrollSummary(null);
+    setCurrentRunId(null);
+  }
+}, [API_URL, payrollMonth, payrollYear, payrollWorkerType, addActivity]);
 
   const handleGeneratePayslips = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/api_generate_payslips.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          month: payrollMonth,
-          year: payrollYear,
-          worker_type: payrollWorkerType,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || "Network error generating payslips"
-        );
-      }
-      const data = await response.json();
-      console.log("Generate Payslips Success:", data);
-      alert(data.message);
-    } catch (error) {
-      console.error("Generate Payslips Error:", error);
-      alert(`Error generating payslips: ${error.message || error}`);
-    }
-  }, [API_URL, payrollMonth, payrollYear, payrollWorkerType]);
+  try {
+    const data = await safeFetch(`${API_URL}/api_generate_payslips.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        month: payrollMonth,
+        year: payrollYear,
+        worker_type: payrollWorkerType,
+      }),
+    });
+
+    console.log("Generate Payslips Success:", data);
+    alert(data.message);
+
+  } catch (error) {
+    console.error("Generate Payslips Error:", error);
+    alert(`Error generating payslips: ${error.message || error}`);
+  }
+}, [API_URL, payrollMonth, payrollYear, payrollWorkerType]);
 
   const handleGenerateManagementReport = useCallback(async () => {
     try {
@@ -1256,7 +1152,8 @@ const EasiSawit = ({ translations }) => {
           errorData.message || "Network error generating management report"
         );
       }
-      // Download PDF directly
+      // Download PDF directly 
+      // however it change to show the management report within the app ONLY, but pls QW lazy and stress so she decided to keep this exits bcs didn't cause any error, she wants to finish the extra things faster and work on the other work
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1272,24 +1169,22 @@ const EasiSawit = ({ translations }) => {
       alert(`Error generating management report: ${error.message || error}`);
     }
   }, [API_URL, payrollMonth, payrollYear, payrollWorkerType]);
-
+// CPO Price Fetcher changed from fetch to safeFetch also by QIAOWEN 
   const fetchCpoPrice = useCallback(() => {
-    console.log("Fetching CPO price...");
-    fetch(`${API_URL}/api_get_price.php?_=${new Date().getTime()}`)
-      .then((response) =>
-        response.ok
-          ? response.json()
-          : Promise.reject("Network error fetching CPO price")
-      )
-      .then((data) => {
-        console.log("CPO Price fetched:", data);
-        setCpoPriceData(data);
-      })
-      .catch((error) => {
-        console.error("Error fetching CPO price:", error);
-        setCpoPriceData({ latest_price: "Error", error: error.message });
-      });
-  }, [API_URL]);
+  console.log("Fetching CPO price...");
+
+  safeFetch(`${API_URL}/api_get_price.php?_=${new Date().getTime()}`)
+    .then((data) => {
+      console.log("CPO Price fetched:", data);
+      setCpoPriceData(data);
+    })
+    .catch((error) => {
+      console.error("Error fetching CPO price:", error);
+      setCpoPriceData({ latest_price: "Error", error: error.message });
+    });
+
+}, [API_URL]);
+
 
   // --- Effects ---
   // This effect updates icons when the app changes
@@ -1324,68 +1219,131 @@ const EasiSawit = ({ translations }) => {
     recentActivity,
   ]);
 
+
+  //finally QW manage to reach here, hope everything can end today 3/12
+  // gonna stop bcs CVNLP class strts soon
   // This effect verifies session and manages URL hash for tabs
   useEffect(() => {
-    // --- NEW: Check if user is logged in ---
-    const verifySession = async () => {
+    console.log("[INIT] Starting session verification and routing initialization...");
+
+    // CRITICAL FIX: Prevent double execution (e.g., React strict mode, hot reload)
+    let isExecuted = false;
+    let cleanup = null;
+
+    // --- CRITICAL FIX: Verify session BEFORE setting up routing and rendering components ---
+    const verifySessionAndInitialize = async () => {
+      // Prevent duplicate execution
+      if (isExecuted) {
+        console.log("[AUTH] Already executed, skipping duplicate call");
+        return;
+      }
+      isExecuted = true;
+
+      console.log("[AUTH] Verifying session...");
+      console.log("[AUTH] Current hash:", window.location.hash);
+
       try {
-        const response = await fetch(`${API_URL}/check_auth.php`, {
+        await safeFetch(`${API_URL}/check_auth.php`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
-        if (!response.ok && response.status === 401) {
-          console.warn(
-            "Session expired or not authenticated, redirecting to login"
-          );
-          sessionStorage.clear();
-          window.location.href = "login.html";
-          return;
-        }
+
+        console.log("[AUTH] ✅ Session valid!");
+
+        // CRITICAL: Set authentication state FIRST, before initializing routing
+        setIsAuthenticated(true);
+        setIsAuthChecking(false);
+
+        console.log("[AUTH] Authentication state updated, initializing routing...");
+
+        // Session is valid, now we can safely initialize routing
+        cleanup = initializeRouting();
+
       } catch (error) {
-        console.error("Session verification error:", error);
-        // Continue anyway - APIs will enforce auth
+        // safeFetch already handles 401 and redirects to login.html
+        // So we don't need to initialize routing here
+        console.error("[AUTH] ❌ Session verification failed:", error.message);
+        console.log("[AUTH] User will be redirected to login.html");
+
+        // Set checking to false (though user will be redirected anyway)
+        setIsAuthChecking(false);
+
+        // Don't initialize routing if session is invalid
+        // User will be redirected by handleSessionExpired()
+        return;
       }
     };
 
-    // Only verify if not already logged in via sessionStorage
-    if (!sessionStorage.getItem("isLoggedIn")) {
-      verifySession();
-    }
+    // Initialize routing only after session is verified
+    const initializeRouting = () => {
+      console.log("[ROUTING] Initializing routing system...");
 
-    const handleHashChange = () => {
-      const hash = window.location.hash.substring(1);
-      const [tab, page] = hash.split("/");
-      const validTabs = [
-        "dashboard",
-        "workers",
-        "worklogs",
-        "customers",
-        "payroll",
-        "applications",
-      ];
-      const currentTab = tab && validTabs.includes(tab) ? tab : "dashboard";
+      const handleHashChange = () => {
+        const hash = window.location.hash.substring(1);
+        console.log("[ROUTING] Hash changed to:", hash);
 
-      setActiveTab(currentTab);
+        const [tab, page] = hash.split("/");
+        const validTabs = [
+          "dashboard",
+          "workers",
+          "worklogs",
+          "customers",
+          "payroll",
+          "applications",
+        ];
 
-      if (!tab || !validTabs.includes(tab)) {
-        window.location.hash = "dashboard/1";
-      } else if (!page) {
-        window.location.hash = `${currentTab}/1`;
-      }
+        const currentTab = tab && validTabs.includes(tab) ? tab : "dashboard";
+        console.log("[ROUTING] Setting active tab to:", currentTab);
+        setActiveTab(currentTab);
+
+        if (!tab || !validTabs.includes(tab)) {
+          console.log("[ROUTING] No valid tab in hash, setting to dashboard/1");
+          window.location.hash = "dashboard/1";
+        } else if (!page) {
+          console.log("[ROUTING] No page in hash, setting to", currentTab + "/1");
+          window.location.hash = `${currentTab}/1`;
+        }
+      };
+
+      window.addEventListener("hashchange", handleHashChange);
+      console.log("[ROUTING] Hash change listener added");
+
+      // Initial load - set up the hash
+      console.log("[ROUTING] Running initial hash setup...");
+      handleHashChange();
+
+      // Return cleanup function
+      return () => {
+        console.log("[ROUTING] Cleaning up hash change listener");
+        window.removeEventListener("hashchange", handleHashChange);
+      };
     };
-    window.addEventListener("hashchange", handleHashChange);
-    handleHashChange(); // Run on initial load
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [API_URL]); // Only run once on mount
+
+    // Start verification and initialization
+    verifySessionAndInitialize();
+
+    // Cleanup function for useEffect
+    return () => {
+      if (cleanup) cleanup();
+    };
+
+}, [API_URL]);
 
   // This effect fetches all initial data
-  useEffect(() => {
-    fetchWorkers();
-    fetchCustomers();
-    fetchArchivedCustomers();
-    fetchWorkLogs();
-    fetchCpoPrice();
-  }, [fetchWorkers, fetchCustomers, fetchArchivedCustomers, fetchWorkLogs, fetchCpoPrice]); // Dependencies are stable callbacks
+  // CRITICAL FIX: Only fetch data AFTER authentication is verified
+useEffect(() => {
+  if (!isAuthenticated) {
+    console.log("[DATA] Skipping data fetch - not authenticated yet");
+    return;
+  }
+
+  console.log("[DATA] Authentication verified, fetching initial data...");
+  fetchWorkers();
+  fetchCustomers();
+  fetchArchivedCustomers();
+  fetchWorkLogs();
+  fetchCpoPrice();
+}, [isAuthenticated, fetchWorkers, fetchCustomers, fetchArchivedCustomers, fetchWorkLogs, fetchCpoPrice]); // Execute ONLY after authentication is verified
 
   // --- Memoized Derived Data ---
   // t is already memoized above
@@ -1440,21 +1398,58 @@ const EasiSawit = ({ translations }) => {
     return list;
   }, [archivedCustomers, debouncedCustomerSearch]);
 
+  // Filter work logs based on selected worker and customer
+  const filteredWorkLogs = useMemo(() => {
+    console.log('[FILTER] Work Log Filters:', {
+      workerFilter: workLogWorkerFilter,
+      customerFilter: workLogCustomerFilter,
+      totalLogs: workLogs.length
+    });
+
+    const filtered = workLogs.filter((log) => {
+      // Convert both sides to numbers for comparison (PHP returns IDs as strings)
+      const workerMatch =
+        workLogWorkerFilter === "All" ||
+        parseInt(log.worker_id) === parseInt(workLogWorkerFilter);
+      const customerMatch =
+        workLogCustomerFilter === "All" ||
+        parseInt(log.customer_id) === parseInt(workLogCustomerFilter);
+      return workerMatch && customerMatch;
+    });
+
+    console.log('[FILTER] Filtered results:', filtered.length);
+    return filtered;
+  }, [workLogs, workLogWorkerFilter, workLogCustomerFilter]);
+
   // Pagination Hooks
   const workersPagination = usePagination(filteredWorkers, 10);
-  const workLogsPagination = usePagination(workLogs, 100);
+  const workLogsPagination = usePagination(filteredWorkLogs, 100);
   const customersPagination = usePagination(filteredCustomers, 10);
   const archivedCustomersPagination = usePagination(filteredArchivedCustomers, 10);
 
-  // --- Render ---
+  // --- CRITICAL FIX: Show loading screen during authentication check ---
+  if (isAuthChecking) {
+    console.log("[RENDER] Showing loading screen - authentication in progress");
+    return <LoadingScreen theme={theme} />;
+  }
+
+  // --- CRITICAL FIX: Don't render anything if not authenticated ---
+  // (User should have been redirected to login.html by handleSessionExpired)
+  if (!isAuthenticated) {
+    console.log("[RENDER] Not authenticated - waiting for redirect to login");
+    return null;
+  }
+
+  // --- Render: MainLayout Structure (ONLY if authenticated) ---
+  console.log("[RENDER] Rendering main application - user is authenticated");
   return (
     <div
       className={`min-h-screen ${
         theme === "light" ? "bg-gray-100" : "bg-gray-900"
       }`}
     >
-      {/* --- LAYOUT FIX: Navigation is now fixed --- */}
-      <Navigation
+      {/* Header: Unified navigation with logo and controls */}
+      <Header
         t={t}
         theme={theme}
         language={language}
@@ -1463,9 +1458,10 @@ const EasiSawit = ({ translations }) => {
         handleLogout={handleLogout}
         setSidebarOpen={setSidebarOpen}
       />
-      {/* --- LAYOUT FIX: Added 'pt-16' to this div to offset for fixed navbar --- */}
-      <div className="flex pt-16">
-        {/* --- LAYOUT FIX: Sidebar is correctly positioned --- */}
+
+      {/* Main Layout: Sidebar + Content (below header with 64px offset) */}
+      <div className="flex" style={{ paddingTop: '64px' }}>
+        {/* Sidebar: Fixed left side, below header */}
         <Sidebar
           t={t}
           theme={theme}
@@ -1474,6 +1470,8 @@ const EasiSawit = ({ translations }) => {
           activeTab={activeTab}
           setActiveTab={handleTabChange}
         />
+
+        {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/40 z-30 md:hidden"
@@ -1481,9 +1479,9 @@ const EasiSawit = ({ translations }) => {
           />
         )}
 
-        {/* --- LAYOUT FIX: Main content has margin-left (ml-...) --- */}
+        {/* Main Content Area: Adjusts based on sidebar state */}
         <main
-          className={`flex-1 p-4 sm:p-6 md:p-8 transition-all duration-300 ml-0 w-full overflow-x-hidden ${
+          className={`flex-1 p-8 transition-all duration-300 overflow-x-hidden ${
             sidebarOpen ? "md:ml-64" : "md:ml-20"
           }`}
         >
@@ -1569,6 +1567,7 @@ const EasiSawit = ({ translations }) => {
           {/* Access View Components via window object */}
           {activeTab === "dashboard" && window.DashboardView && (
             <window.DashboardView
+              key="dashboard-view"
               t={t}
               theme={theme}
               workers={workers}
@@ -1583,6 +1582,7 @@ const EasiSawit = ({ translations }) => {
           )}
           {activeTab === "workers" && window.WorkersView && (
             <window.WorkersView
+              key="workers-view"
               t={t}
               theme={theme}
               filteredWorkers={filteredWorkers}
@@ -1601,9 +1601,10 @@ const EasiSawit = ({ translations }) => {
           )}
           {activeTab === "worklogs" && window.WorkLogsView && (
             <window.WorkLogsView
+              key="worklogs-view"
               t={t}
               theme={theme}
-              workLogs={workLogs}
+              workLogs={filteredWorkLogs}
               workers={workers}
               customers={customers}
               currentData={workLogsPagination.currentData}
@@ -1621,6 +1622,7 @@ const EasiSawit = ({ translations }) => {
           )}
           {activeTab === "customers" && window.CustomersView && (
             <window.CustomersView
+              key="customers-view"
               t={t}
               theme={theme}
               customers={filteredCustomers}
@@ -1641,6 +1643,7 @@ const EasiSawit = ({ translations }) => {
           )}
           {activeTab === "payroll" && window.PayrollView && (
             <window.PayrollView
+              key="payroll-view"
               t={t}
               theme={theme}
               payrollMonth={payrollMonth}
@@ -1654,21 +1657,23 @@ const EasiSawit = ({ translations }) => {
               handleGenerateManagementReport={handleGenerateManagementReport}
               payrollSummary={payrollSummary}
               currentRunId={currentRunId}
+              setActiveTab={setActiveTab}
             />
           )}
           {activeTab === "applications" && window.ApplicationsView && (
             <window.ApplicationsView
+              key="applications-view"
               t={t}
               theme={theme}
+              addActivity={addActivity}
             />
           )}
           {activeTab === "reports" && window.ManagementReportView && (
             <window.ManagementReportView
+              key="reports-view"
               t={t}
               theme={theme}
-              workers={workers}
-              customers={customers}
-              workLogs={workLogs}
+              setActiveTab={setActiveTab}
             />
           )}
         </main>
@@ -1680,3 +1685,5 @@ const EasiSawit = ({ translations }) => {
 // --- Render the App ---
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<EasiSawit translations={translations} />);
+
+//

@@ -41,6 +41,14 @@ include 'db_connect.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
+// Debug: Log received data
+error_log("[REGISTRATION] Received data: " . json_encode($data));
+if (isset($data['service_area'])) {
+    error_log("[REGISTRATION] Service Area received: '" . $data['service_area'] . "'");
+} else {
+    error_log("[REGISTRATION] Service Area field is MISSING");
+}
+
 // Validation
 $required_fields = ['name', 'email', 'contact'];
 foreach ($required_fields as $field) {
@@ -49,6 +57,11 @@ foreach ($required_fields as $field) {
         echo json_encode(array("message" => "Field '{$field}' is required"));
         exit();
     }
+}
+
+// Service area is highly recommended but allow empty for backward compatibility
+if (!isset($data['service_area'])) {
+    error_log("[REGISTRATION] WARNING: service_area field missing from request");
 }
 
 // Validate email format
@@ -62,14 +75,15 @@ if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
 $name = trim($data['name']);
 $email = trim($data['email']);
 $contact = trim($data['contact']);
+$service_area = isset($data['service_area']) && !empty(trim($data['service_area'])) ? trim($data['service_area']) : null;
 $location = isset($data['location']) ? trim($data['location']) : null;
 $acres = isset($data['acres']) ? floatval($data['acres']) : null;
 $company_name = isset($data['company_name']) ? trim($data['company_name']) : null;
 $rate_requested = isset($data['rate_requested']) ? floatval($data['rate_requested']) : null;
 
 // Insert application into database
-$sql = "INSERT INTO customer_applications (name, email, contact, location, acres, company_name, rate_requested, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')";
+$sql = "INSERT INTO customer_applications (name, email, contact, service_area, location, acres, company_name, rate_requested, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
@@ -78,7 +92,7 @@ if (!$stmt) {
     exit();
 }
 
-$stmt->bind_param("ssssdsd", $name, $email, $contact, $location, $acres, $company_name, $rate_requested);
+$stmt->bind_param("sssssdsd", $name, $email, $contact, $service_area, $location, $acres, $company_name, $rate_requested);
 
 if (!$stmt->execute()) {
     http_response_code(503);

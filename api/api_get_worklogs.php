@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// We use a JOIN to get the worker and customer names
+// JOIN to get worker/customer names and rate (3NF normalized)
 $sql = "SELECT
             wl.id,
             wl.log_date,
@@ -20,7 +20,8 @@ $sql = "SELECT
             w.name AS worker_name,
             c.name AS customer_name,
             wl.tons,
-            wl.rate_per_ton
+            c.rate AS rate_per_ton,
+            (wl.tons * c.rate) AS earnings
         FROM
             work_logs wl
         JOIN

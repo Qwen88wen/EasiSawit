@@ -27,11 +27,11 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 // ============================================================================
 
 /**
- * 【修复版】查找外劳的 SOCSO (工伤计划，仅雇主)
+ * [Fixed Version] Lookup Foreign Worker SOCSO (Employment Injury Scheme, employer only)
  * Lookup Foreign Worker SOCSO (Employment Injury Scheme)
  */
 function lookup_socso_foreign_employer($conn, $gross_pay) {
-    // 1. 尝试精确查找 - 修正 WHERE 条件
+    // 1. Attempt exact lookup - fix WHERE condition
     $stmt = $conn->prepare("
         SELECT employer_contribution
         FROM socso_foreign_schedule
@@ -51,36 +51,36 @@ function lookup_socso_foreign_employer($conn, $gross_pay) {
     $stmt->close();
 
     if (!$result) {
-        // 2. 【回退逻辑】 抓取最高档位
+        // 2. [Fallback Logic] Retrieve highest bracket
         $stmt_max = $conn->prepare("
-            SELECT employer_contribution 
-            FROM socso_foreign_schedule 
-            ORDER BY salary_floor DESC 
+            SELECT employer_contribution
+            FROM socso_foreign_schedule
+            ORDER BY salary_floor DESC
             LIMIT 1
         ");
         $stmt_max->execute();
         $result_max = $stmt_max->get_result()->fetch_assoc();
         $stmt_max->close();
-        
+
         if ($result_max) {
             error_log("Foreign SOCSO: Using fallback max bracket for gross_pay: {$gross_pay}");
             return (float)$result_max['employer_contribution'];
         }
 
         error_log("Foreign SOCSO: No data found for gross_pay: {$gross_pay}");
-        return 0.00; // 彻底查找失败
+        return 0.00; // Complete lookup failure
     }
-    
-    // 3. 精确查找成功
+
+    // 3. Exact lookup successful
     return (float)$result['employer_contribution'];
 }
 
 /**
- * 【修复版】查找本地员工的 SOCSO 和 EIS
+ * [Fixed Version] Lookup local employee SOCSO and EIS
  * Lookup SOCSO and EIS contributions based on gross pay
  */
 function lookup_socso_eis($conn, $gross_pay) {
-    // 1. 尝试精确查找 - 修正 WHERE 条件
+    // 1. Attempt exact lookup - fix WHERE condition
     $stmt = $conn->prepare("
         SELECT socso_employee, socso_employer, eis_employee, eis_employer
         FROM socso_eis_schedule
@@ -100,11 +100,11 @@ function lookup_socso_eis($conn, $gross_pay) {
     $stmt->close();
 
     if (!$result) {
-        // 2. 【回退逻辑】 抓取最高档位
+        // 2. [Fallback Logic] Retrieve highest bracket
         $stmt_max = $conn->prepare("
             SELECT socso_employee, socso_employer, eis_employee, eis_employer
-            FROM socso_eis_schedule 
-            ORDER BY salary_floor DESC 
+            FROM socso_eis_schedule
+            ORDER BY salary_floor DESC
             LIMIT 1
         ");
         $stmt_max->execute();
@@ -120,12 +120,12 @@ function lookup_socso_eis($conn, $gross_pay) {
                 'eis_employer' => (float)$result_max['eis_employer']
             ];
         }
-        
+
         error_log("SOCSO/EIS: No data found for gross_pay: {$gross_pay}");
         return ['socso_employee' => 0.00, 'socso_employer' => 0.00, 'eis_employee' => 0.00, 'eis_employer' => 0.00];
     }
-    
-    // 3. 精确查找成功
+
+    // 3. Exact lookup successful
     return [
         'socso_employee' => (float)$result['socso_employee'],
         'socso_employer' => (float)$result['socso_employer'],
@@ -135,7 +135,7 @@ function lookup_socso_eis($conn, $gross_pay) {
 }
 
 /**
- * 【修复版】查找 EPF 供款 - 包含 Foreign 逻辑和高薪回退
+ * [Fixed Version] Lookup EPF contributions - includes Foreign logic and high salary fallback
  * Lookup EPF contributions based on gross pay, age, and nationality
  */
 function lookup_epf($conn, $gross_pay, $is_above_60, $worker_nationality) {
@@ -168,8 +168,8 @@ function lookup_epf($conn, $gross_pay, $is_above_60, $worker_nationality) {
     // Local workers continue to use EPF schedule lookup table
     $age_group = $is_above_60 ? 'Above 60' : 'Below 60';
 
-    // 2. 【修复】尝试精确查找 - 修正 WHERE 条件
-    // 正确的条件: salary_ceiling < ? AND salary_floor >= ?
+    // 2. [Fixed] Attempt exact lookup - fix WHERE condition
+    // Correct condition: salary_ceiling < ? AND salary_floor >= ?
     $stmt = $conn->prepare("
         SELECT employee_contribution, employer_contribution
         FROM epf_schedule
@@ -185,14 +185,14 @@ function lookup_epf($conn, $gross_pay, $is_above_60, $worker_nationality) {
         return ['epf_employee' => 0.00, 'epf_employer' => 0.00];
     }
 
-    // 绑定参数：age_group, gross_pay, gross_pay
+    // Bind parameters: age_group, gross_pay, gross_pay
     $stmt->bind_param("sdd", $age_group, $gross_pay, $gross_pay);
     $stmt->execute();
     $result = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     if (!$result) {
-        // 3. 【回退逻辑】如果查找失败，使用最高档位
+        // 3. [Fallback Logic] If lookup fails, use highest bracket
         $stmt_max = $conn->prepare("
             SELECT employee_contribution, employer_contribution
             FROM epf_schedule
@@ -216,8 +216,8 @@ function lookup_epf($conn, $gross_pay, $is_above_60, $worker_nationality) {
         error_log("EPF: No data found for {$age_group}, gross_pay: {$gross_pay}");
         return ['epf_employee' => 0.00, 'epf_employer' => 0.00];
     }
-    
-    // 4. 精确查找成功
+
+    // 4. Exact lookup successful
     return [
         'epf_employee' => (float)$result['employee_contribution'],
         'epf_employer' => (float)$result['employer_contribution']
@@ -264,7 +264,7 @@ function calculate_annual_tax_rate($chargeable_income) {
 
 /**
  * Calculate PCB (Monthly Tax Deduction) based on LHDN formula
- * 【注意：此函数现在只适用于本地员工 (Resident)】
+ * [Note: This function is now only applicable for local employees (Resident)]
  */
 function calculate_pcb($conn, $taxable_income, $worker_details, $ytd_tax_paid) {
     $mtr_personal = 9000.00 / 12;
@@ -427,7 +427,8 @@ if (empty($active_workers)) {
 $worker_ids = array_keys($active_workers);
 $placeholders = implode(',', array_fill(0, count($worker_ids), '?'));
 
-$worklog_sql = "SELECT wl.id, wl.log_date, wl.worker_id, wl.customer_id, wl.tons, wl.rate_per_ton, c.name AS customer_name
+// 3NF normalized: rate from customers table
+$worklog_sql = "SELECT wl.id, wl.log_date, wl.worker_id, wl.customer_id, wl.tons, c.rate AS rate_per_ton, c.name AS customer_name
                  FROM work_logs wl
                  JOIN customers c ON wl.customer_id = c.id
                  WHERE MONTH(wl.log_date) = ? AND YEAR(wl.log_date) = ? AND wl.worker_id IN ($placeholders)";
@@ -534,17 +535,19 @@ $result_check = $stmt_check_allowances->get_result()->fetch_assoc();
 $has_manual_allowances = $result_check['count'] > 0;
 $stmt_check_allowances->close();
 
-// MODIFIED LOGIC: "No work, no payroll"
-// Only generate payroll if there are work logs OR manual allowances
-// Fixed salary workers are NOT automatically paid without activity
-if (!$has_work_logs && !$has_manual_allowances) {
+// MODIFIED LOGIC: Check if there's ANY activity OR fixed salary workers
+// Generate payroll if: (1) work logs exist, (2) manual allowances exist, OR (3) fixed salary workers exist
+// Only skip if there are NO piece-rate work logs, NO manual allowances, AND NO fixed salary workers
+$has_fixed_salary_workers = !empty($fixed_salary_map);
+
+if (!$has_work_logs && !$has_manual_allowances && !$has_fixed_salary_workers) {
     $conn->close();
     http_response_code(200);
     echo json_encode([
-        "message" => "No payroll data found for the specified period. This period has no work logs or manual allowances recorded.",
+        "message" => "No payroll data found for the specified period. This period has no work logs, manual allowances, or fixed salary workers.",
         "period" => sprintf("%d-%02d", $year, $month),
         "payroll_summary" => $payroll_summary,
-        "info" => "To generate payroll for this period, please add work logs or manual allowances first. Note: Fixed salary workers also require work logs or manual allowances to be included in payroll."
+        "info" => "To generate payroll for this period, please add work logs, manual allowances, or set up fixed salary workers."
     ], JSON_UNESCAPED_UNICODE);
     exit();
 }
@@ -576,12 +579,13 @@ foreach ($active_workers as $worker_id => $worker_details) {
     $has_worker_allowances = $result_worker_check['count'] > 0;
     $stmt_check_worker_allowances->close();
     
-    // MODIFIED LOGIC: "No work, no payroll" applies to ALL workers
+    // MODIFIED LOGIC: "No work, no payroll" applies to piece-rate workers ONLY
+    // Fixed salary workers should ALWAYS be included in payroll
     $has_worker_activity = $has_worker_work_logs || $has_worker_allowances;
 
-    // Skip ALL workers (including fixed salary) with no activity
-    if (!$has_worker_activity) {
-         continue; // Skip: Worker with no work logs or manual allowances
+    // Skip workers with no activity (EXCEPT fixed salary workers who get paid regardless)
+    if (!$has_worker_activity && !$is_fixed_salary) {
+         continue; // Skip: Piece-rate worker with no work logs or manual allowances
     }
 
     // ========================================================================

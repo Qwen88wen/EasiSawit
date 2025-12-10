@@ -58,7 +58,7 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="identity_type" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Identity Type
+              {t_modal.identityType}
             </label>
             <select
               id="identity_type"
@@ -67,15 +67,15 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="">Select Type</option>
-              <option value="IC">IC (Identity Card)</option>
-              <option value="Passport">Passport</option>
-              <option value="Work Permit">Work Permit</option>
+              <option value="">{t_modal.selectType}</option>
+              <option value="IC">{t_modal.ic}</option>
+              <option value="Passport">{t_modal.passport}</option>
+              <option value="Work Permit">{t_modal.workPermit}</option>
             </select>
           </div>
           <div>
             <label htmlFor="identity_number" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Identity Number
+              {t_modal.identityNumber}
             </label>
             <input
               type="text"
@@ -105,7 +105,7 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
           </div>
           <div>
             <label htmlFor="age" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Age
+              {t_modal.age}
             </label>
             <input
               type="number"
@@ -150,7 +150,7 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="marital_status" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Marital Status
+              {t_modal.maritalStatus}
             </label>
             <select
               id="marital_status"
@@ -159,16 +159,16 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="">Select Status</option>
-              <option value="Single">Single</option>
-              <option value="Married">Married</option>
-              <option value="Divorced">Divorced</option>
-              <option value="Widowed">Widowed</option>
+              <option value="">{t_modal.selectStatus}</option>
+              <option value="Single">{t_modal.single}</option>
+              <option value="Married">{t_modal.married}</option>
+              <option value="Divorced">{t_modal.divorced}</option>
+              <option value="Widowed">{t_modal.widowed}</option>
             </select>
           </div>
           <div>
             <label htmlFor="children_count" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Number of Children
+              {t_modal.childrenCount}
             </label>
             <input
               type="number"
@@ -186,7 +186,7 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
         {newWorker.marital_status === 'Married' && (
           <div>
             <label htmlFor="spouse_working" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Spouse Working Status
+              {t_modal.spouseWorking}
             </label>
             <select
               id="spouse_working"
@@ -195,8 +195,8 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="0">Not Working</option>
-              <option value="1">Working</option>
+              <option value="0">{t_modal.notWorking}</option>
+              <option value="1">{t_modal.working}</option>
             </select>
           </div>
         )}
@@ -204,7 +204,7 @@ const AddWorkerModal = ({ t, theme, isModalOpen, setIsModalOpen, newWorker, setN
         {newWorker.type === 'Local' && (
           <div>
             <label htmlFor="zakat_monthly" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Monthly Zakat (RM)
+              {t_modal.monthlyZakat}
             </label>
             <input
               type="number"
@@ -306,7 +306,7 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="edit-identity_type" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Identity Type
+              {t_modal.identityType}
             </label>
             <select
               id="edit-identity_type"
@@ -315,15 +315,15 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="">Select Type</option>
-              <option value="IC">IC (Identity Card)</option>
-              <option value="Passport">Passport</option>
-              <option value="Work Permit">Work Permit</option>
+              <option value="">{t_modal.selectType}</option>
+              <option value="IC">{t_modal.ic}</option>
+              <option value="Passport">{t_modal.passport}</option>
+              <option value="Work Permit">{t_modal.workPermit}</option>
             </select>
           </div>
           <div>
             <label htmlFor="edit-identity_number" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Identity Number
+              {t_modal.identityNumber}
             </label>
             <input
               type="text"
@@ -353,7 +353,7 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
           </div>
           <div>
             <label htmlFor="edit-age" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Age
+              {t_modal.age}
             </label>
             <input
               type="number"
@@ -398,7 +398,7 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="edit-marital_status" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Marital Status
+              {t_modal.maritalStatus}
             </label>
             <select
               id="edit-marital_status"
@@ -407,16 +407,16 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="">Select Status</option>
-              <option value="Single">Single</option>
-              <option value="Married">Married</option>
-              <option value="Divorced">Divorced</option>
-              <option value="Widowed">Widowed</option>
+              <option value="">{t_modal.selectStatus}</option>
+              <option value="Single">{t_modal.single}</option>
+              <option value="Married">{t_modal.married}</option>
+              <option value="Divorced">{t_modal.divorced}</option>
+              <option value="Widowed">{t_modal.widowed}</option>
             </select>
           </div>
           <div>
             <label htmlFor="edit-children_count" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Number of Children
+              {t_modal.childrenCount}
             </label>
             <input
               type="number"
@@ -434,7 +434,7 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
         {editingWorker.marital_status === 'Married' && (
           <div>
             <label htmlFor="edit-spouse_working" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Spouse Working Status
+              {t_modal.spouseWorking}
             </label>
             <select
               id="edit-spouse_working"
@@ -443,8 +443,8 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
               onChange={handleChange}
               className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-900' : 'bg-gray-700 border-gray-600 text-white'}`}
             >
-              <option value="0">Not Working</option>
-              <option value="1">Working</option>
+              <option value="0">{t_modal.notWorking}</option>
+              <option value="1">{t_modal.working}</option>
             </select>
           </div>
         )}
@@ -452,7 +452,7 @@ const EditWorkerModal = ({ t, theme, isEditModalOpen, setIsEditModalOpen, editin
         {editingWorker.type === 'Local' && (
           <div>
             <label htmlFor="edit-zakat_monthly" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-              Monthly Zakat (RM)
+              {t_modal.monthlyZakat}
             </label>
             <input
               type="number"
@@ -820,7 +820,7 @@ const AddCustomerModal = ({ t, theme, isAddCustomerModalOpen, setIsAddCustomerMo
         </div>
         <div>
           <label htmlFor="customer_acres" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Acres (Optional)
+            {t_modal.acres}
           </label>
           <input
             type="number"
@@ -849,7 +849,7 @@ const AddCustomerModal = ({ t, theme, isAddCustomerModalOpen, setIsAddCustomerMo
         </div>
         <div>
           <label htmlFor="customer_remark" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Service Area <span className="text-red-500">*</span>
+            {t_modal.serviceArea} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -864,7 +864,7 @@ const AddCustomerModal = ({ t, theme, isAddCustomerModalOpen, setIsAddCustomerMo
         </div>
         <div>
           <label htmlFor="customer_remark2" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Location (Optional)
+            {t_modal.location}
           </label>
           <input
             type="text"
@@ -901,8 +901,11 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
   const t_modal = t.editCustomerModal;
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setEditingCustomer(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    // For number inputs, convert empty string to null
+    const processedValue = type === 'number' && value === '' ? null : value;
+    console.log('[EDIT CUSTOMER] Field changed:', name, '=', processedValue, '(type:', type, ')');
+    setEditingCustomer(prev => ({ ...prev, [name]: processedValue }));
   };
 
   // --- FIX: Check if data is unchanged ---
@@ -951,7 +954,7 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
         </div>
         <div>
           <label htmlFor="edit_customer_acres" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Acres (Optional)
+            {t_modal.acres}
           </label>
           <input
             type="number"
@@ -980,7 +983,7 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
         </div>
         <div>
           <label htmlFor="edit_customer_remark" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Service Area <span className="text-red-500">*</span>
+            {t_modal.serviceArea} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -995,7 +998,7 @@ const EditCustomerModal = ({ t, theme, isEditCustomerModalOpen, setIsEditCustome
         </div>
         <div>
           <label htmlFor="edit_customer_remark2" className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
-            Location (Optional)
+            {t_modal.location}
           </label>
           <input
             type="text"

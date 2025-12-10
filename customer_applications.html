@@ -6,6 +6,7 @@
   <title>Customer Applications - EasiSawit (Optimized)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="translations.js?v=5.0"></script>
   <script>
     // Access Control
     async function checkAuth() {
@@ -228,18 +229,18 @@
           </g>
         </svg>
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Customer Applications</h1>
-          <p class="text-gray-600">Manage customer registration requests efficiently</p>
+          <h1 class="text-3xl font-bold text-gray-900" id="pageTitle">Customer Applications</h1>
+          <p class="text-gray-600" id="pageSubtitle">Manage customer registration requests</p>
         </div>
       </div>
       <div class="flex gap-3 flex-wrap">
         <button onclick="loadApplications()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
           <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
-          Refresh
+          <span id="refreshBtn">Refresh</span>
         </button>
         <button onclick="window.location.href='index.html'" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition flex items-center gap-2">
           <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
-          Back
+          <span id="backBtn">Back</span>
         </button>
       </div>
     </div>
@@ -367,18 +368,18 @@
   <div id="bulkActionsBar" class="glass-card p-4 mb-6 hidden animate-slide-in">
     <div class="flex items-center justify-between flex-wrap gap-4">
       <div class="flex items-center gap-3">
-        <span class="font-semibold text-gray-900"><span id="selectedCount">0</span> selected</span>
-        <button onclick="selectAll()" class="text-emerald-600 hover:text-emerald-700 font-medium text-sm">Select All</button>
-        <button onclick="deselectAll()" class="text-gray-600 hover:text-gray-700 font-medium text-sm">Deselect All</button>
+        <span class="font-semibold text-gray-900"><span id="selectedCount">0</span> <span id="selectedText">selected</span></span>
+        <button onclick="selectAll()" class="text-emerald-600 hover:text-emerald-700 font-medium text-sm" id="selectAllBtn">Select All</button>
+        <button onclick="deselectAll()" class="text-gray-600 hover:text-gray-700 font-medium text-sm" id="deselectAllBtn">Deselect All</button>
       </div>
       <div class="flex gap-3">
         <button onclick="bulkApprove()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
           <i data-lucide="check" style="width: 18px; height: 18px;"></i>
-          Bulk Approve
+          <span id="bulkApproveBtn">Bulk Approve</span>
         </button>
         <button onclick="bulkReject()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition flex items-center gap-2">
           <i data-lucide="x" style="width: 18px; height: 18px;"></i>
-          Bulk Reject
+          <span id="bulkRejectBtn">Bulk Reject</span>
         </button>
       </div>
     </div>
@@ -389,7 +390,7 @@
     <div class="flex justify-between items-center mb-6">
       <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
         <i data-lucide="inbox" style="width: 24px; height: 24px;"></i>
-        Applications List (<span id="displayedCount">0</span>)
+        <span id="applicationsListTitle">Applications List</span> (<span id="displayedCount">0</span>)
       </h3>
     </div>
 
@@ -403,7 +404,7 @@
     <!-- Empty State -->
     <div id="emptyState" class="hidden text-center py-12">
       <i data-lucide="inbox" style="width: 64px; height: 64px; color: #9ca3af; margin: 0 auto 16px;"></i>
-      <p class="text-gray-500 text-lg">No applications found</p>
+      <p class="text-gray-500 text-lg" id="noApplicationsText">No applications found</p>
     </div>
 
     <!-- Table -->
@@ -414,14 +415,14 @@
             <th class="text-left p-3 font-semibold text-gray-700">
               <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
             </th>
-            <th class="text-left p-3 font-semibold text-gray-700">Name</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Email</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Contact</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Location</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Acres</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Status</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Date</th>
-            <th class="text-left p-3 font-semibold text-gray-700">Actions</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderName">Name</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderEmail">Email</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderContact">Contact</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderLocation">Location</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderAcres">Acres</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderStatus">Status</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderDate">Date</th>
+            <th class="text-left p-3 font-semibold text-gray-700" id="tableHeaderActions">Actions</th>
           </tr>
         </thead>
         <tbody id="tableBody">
@@ -436,7 +437,7 @@
     <div class="modal-content fade-in">
       <div class="p-6">
         <div class="flex justify-between items-start mb-6">
-          <h3 class="text-2xl font-bold text-gray-900">Application Details</h3>
+          <h3 class="text-2xl font-bold text-gray-900" id="modalTitle">Application Details</h3>
           <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
             <i data-lucide="x" style="width: 24px; height: 24px;"></i>
           </button>
@@ -450,6 +451,140 @@
   </div>
 
   <script>
+    // Get current language and translations
+    const currentLang = localStorage.getItem('language') || 'en';
+    const t = translations[currentLang].applicationsView;
+
+    // Helper function to get translated status
+    function getStatusText(status) {
+      const statusMap = {
+        'pending': t.pending,
+        'approved': t.approved,
+        'rejected': t.rejected
+      };
+      return statusMap[status.toLowerCase()] || status;
+    }
+
+    // Apply translations to static elements
+    function applyTranslations() {
+      // Header
+      const pageTitle = document.getElementById('pageTitle');
+      if (pageTitle) pageTitle.textContent = t.title;
+
+      const pageSubtitle = document.getElementById('pageSubtitle');
+      if (pageSubtitle) pageSubtitle.textContent = t.subtitle;
+
+      const refreshBtn = document.getElementById('refreshBtn');
+      if (refreshBtn) refreshBtn.textContent = t.refresh;
+
+      const backBtn = document.getElementById('backBtn');
+      if (backBtn) backBtn.textContent = t.back;
+
+      // Status filter buttons
+      const buttons = {
+        'filter-all': t.allApplications,
+        'filter-pending': t.pending,
+        'filter-approved': t.approved,
+        'filter-rejected': t.rejected
+      };
+      Object.entries(buttons).forEach(([id, text]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.textContent = text;
+      });
+
+      // Statistics cards
+      const statsLabels = [
+        { selector: '.glass-card:nth-child(1) .text-gray-600', text: t.totalApplications },
+        { selector: '.glass-card:nth-child(2) .text-gray-600', text: t.pendingReview },
+        { selector: '.glass-card:nth-child(3) .text-gray-600', text: t.approved },
+        { selector: '.glass-card:nth-child(4) .text-gray-600', text: t.rejected }
+      ];
+      statsLabels.forEach(({ selector, text }) => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = text;
+      });
+
+      // Bulk actions
+      const selectedText = document.getElementById('selectedText');
+      if (selectedText) selectedText.textContent = t.selected;
+
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      if (selectAllBtn) selectAllBtn.textContent = t.selectAll;
+
+      const deselectAllBtn = document.getElementById('deselectAllBtn');
+      if (deselectAllBtn) deselectAllBtn.textContent = t.deselectAll;
+
+      const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+      if (bulkApproveBtn) bulkApproveBtn.textContent = t.bulkApprove;
+
+      const bulkRejectBtn = document.getElementById('bulkRejectBtn');
+      if (bulkRejectBtn) bulkRejectBtn.textContent = t.bulkReject;
+
+      // Applications list
+      const applicationsListTitle = document.getElementById('applicationsListTitle');
+      if (applicationsListTitle) applicationsListTitle.textContent = t.applicationsList;
+
+      const noApplicationsText = document.getElementById('noApplicationsText');
+      if (noApplicationsText) noApplicationsText.textContent = t.noApplicationsFound;
+
+      // Table headers
+      const tableHeaderName = document.getElementById('tableHeaderName');
+      if (tableHeaderName) tableHeaderName.textContent = t.name;
+
+      const tableHeaderEmail = document.getElementById('tableHeaderEmail');
+      if (tableHeaderEmail) tableHeaderEmail.textContent = t.email;
+
+      const tableHeaderContact = document.getElementById('tableHeaderContact');
+      if (tableHeaderContact) tableHeaderContact.textContent = t.contact;
+
+      const tableHeaderLocation = document.getElementById('tableHeaderLocation');
+      if (tableHeaderLocation) tableHeaderLocation.textContent = t.location;
+
+      const tableHeaderAcres = document.getElementById('tableHeaderAcres');
+      if (tableHeaderAcres) tableHeaderAcres.textContent = t.acres;
+
+      const tableHeaderStatus = document.getElementById('tableHeaderStatus');
+      if (tableHeaderStatus) tableHeaderStatus.textContent = t.status;
+
+      const tableHeaderDate = document.getElementById('tableHeaderDate');
+      if (tableHeaderDate) tableHeaderDate.textContent = t.date;
+
+      const tableHeaderActions = document.getElementById('tableHeaderActions');
+      if (tableHeaderActions) tableHeaderActions.textContent = t.actions;
+
+      // Search placeholder
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+
+      // Sort options
+      const sortSelect = document.getElementById('sortSelect');
+      if (sortSelect) {
+        sortSelect.options[0].text = t.sortLatestFirst;
+        sortSelect.options[1].text = t.sortOldestFirst;
+        sortSelect.options[2].text = t.sortNameAsc;
+        sortSelect.options[3].text = t.sortNameDesc;
+        sortSelect.options[4].text = t.sortAcresDesc;
+        sortSelect.options[5].text = t.sortAcresAsc;
+      }
+
+      // Advanced filter labels
+      const advancedLabels = document.querySelectorAll('#advancedFilters label');
+      if (advancedLabels[0]) advancedLabels[0].textContent = t.dateFrom;
+      if (advancedLabels[1]) advancedLabels[1].textContent = t.dateTo;
+      if (advancedLabels[2]) advancedLabels[2].textContent = t.minAcres;
+
+      // Advanced button text
+      const advBtn = document.querySelector('button[onclick="toggleAdvancedFilters()"]');
+      if (advBtn) {
+        const textNode = Array.from(advBtn.childNodes).find(node => node.nodeType === 3);
+        if (textNode) textNode.textContent = ` ${t.advanced}`;
+      }
+
+      // Modal title
+      const modalTitle = document.getElementById('modalTitle');
+      if (modalTitle) modalTitle.textContent = t.applicationDetails;
+    }
+
     let allApplications = [];
     let filteredApplications = [];
     let currentFilter = 'all';
@@ -476,12 +611,12 @@
         applyFilters();
 
         loadingState.classList.add('hidden');
-        showToast('Applications loaded successfully', 'success');
+        showToast(t.applicationsLoadedSuccessfully, 'success');
       } catch (error) {
         console.error('Error loading applications:', error);
         loadingState.classList.add('hidden');
         emptyState.classList.remove('hidden');
-        showToast('Error loading applications: ' + error.message, 'error');
+        showToast(t.errorLoadingApplications + ' ' + error.message, 'error');
       }
     }
 
@@ -613,7 +748,7 @@
           <td class="p-3 text-gray-600">${app.location || '-'}</td>
           <td class="p-3 text-gray-600">${app.acres ? parseFloat(app.acres).toFixed(2) : '-'}</td>
           <td class="p-3">
-            <span class="badge badge-${app.status.toLowerCase()}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span>
+            <span class="badge badge-${app.status.toLowerCase()}">${getStatusText(app.status)}</span>
           </td>
           <td class="p-3 text-gray-600 text-sm">${new Date(app.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
           <td class="p-3" onclick="event.stopPropagation()">
@@ -692,24 +827,25 @@
       }
     }
 
-    // Quick actions
+    // Quick actions , status update 
     async function quickApprove(id) {
-      await updateStatus(id, 'Active', false);
-    }
+  await updateStatus(id, 'approved', false);
+}
 
-    async function quickReject(id) {
-      const reason = prompt('Rejection reason (optional):');
-      await updateStatus(id, 'Rejected', false, reason);
-    }
+async function quickReject(id) {
+  const reason = prompt(t.enterRejectionReason);
+  await updateStatus(id, 'rejected', false, reason);
+}
+
 
     // Bulk actions
     async function bulkApprove() {
       if (selectedIds.size === 0) {
-        showToast('No applications selected', 'error');
+        showToast(t.noApplicationsSelected, 'error');
         return;
       }
 
-      if (!confirm(`Are you sure you want to approve ${selectedIds.size} application(s)?`)) {
+      if (!confirm(`${t.confirmBulkApprove} ${selectedIds.size} ${t.applications}`)) {
         return;
       }
 
@@ -735,19 +871,19 @@
         }
       }
 
-      showToast(`Approved: ${successCount}, Failed: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+      showToast(`${t.approved}: ${successCount}, ${t.failed}: ${errorCount}`, successCount > 0 ? 'success' : 'error');
       deselectAll();
       loadApplications();
     }
 
     async function bulkReject() {
       if (selectedIds.size === 0) {
-        showToast('No applications selected', 'error');
+        showToast(t.noApplicationsSelected, 'error');
         return;
       }
 
-      const reason = prompt('Rejection reason (optional):');
-      if (!confirm(`Are you sure you want to reject ${selectedIds.size} application(s)?`)) {
+      const reason = prompt(t.enterRejectionReason);
+      if (!confirm(`${t.confirmBulkReject} ${selectedIds.size} ${t.applications}`)) {
         return;
       }
 
@@ -773,7 +909,7 @@
         }
       }
 
-      showToast(`Rejected: ${successCount}, Failed: ${errorCount}`, successCount > 0 ? 'success' : 'error');
+      showToast(`${t.rejected}: ${successCount}, ${t.failed}: ${errorCount}`, successCount > 0 ? 'success' : 'error');
       deselectAll();
       loadApplications();
     }
@@ -787,57 +923,57 @@
       modalContent.innerHTML = `
         <div class="space-y-6">
           <div>
-            <label class="text-sm font-semibold text-gray-600">Status</label>
+            <label class="text-sm font-semibold text-gray-600">${t.status}</label>
             <div class="mt-2">
-              <span class="badge badge-${app.status.toLowerCase()}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span>
+              <span class="badge badge-${app.status.toLowerCase()}">${getStatusText(app.status)}</span>
             </div>
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-gray-600">Full Name</label>
+            <label class="text-sm font-semibold text-gray-600">${t.fullName}</label>
             <p class="mt-1 text-lg font-medium text-gray-900">${app.name}</p>
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-gray-600">Email Address</label>
-            <p class="mt-1 text-gray-900">${app.email || 'Not provided'}</p>
+            <label class="text-sm font-semibold text-gray-600">${t.emailAddress}</label>
+            <p class="mt-1 text-gray-900">${app.email || t.notProvided}</p>
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-gray-600">Contact Number</label>
-            <p class="mt-1 text-gray-900">${app.contact || 'Not provided'}</p>
+            <label class="text-sm font-semibold text-gray-600">${t.contactNumber}</label>
+            <p class="mt-1 text-gray-900">${app.contact || t.notProvided}</p>
           </div>
 
           ${app.location ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Location</label>
+            <label class="text-sm font-semibold text-gray-600">${t.location}</label>
             <p class="mt-1 text-gray-900">${app.location}</p>
           </div>
           ` : ''}
 
           ${app.acres ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Acres</label>
-            <p class="mt-1 text-gray-900">${parseFloat(app.acres).toFixed(2)} acres</p>
+            <label class="text-sm font-semibold text-gray-600">${t.acres}</label>
+            <p class="mt-1 text-gray-900">${parseFloat(app.acres).toFixed(2)} ${t.acres.toLowerCase()}</p>
           </div>
           ` : ''}
 
           ${app.company_name ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Company Name</label>
+            <label class="text-sm font-semibold text-gray-600">${t.companyName}</label>
             <p class="mt-1 text-gray-900">${app.company_name}</p>
           </div>
           ` : ''}
 
           ${app.rate_requested ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Requested Rate</label>
+            <label class="text-sm font-semibold text-gray-600">${t.requestedRate}</label>
             <p class="mt-1 text-gray-900">RM ${parseFloat(app.rate_requested).toFixed(2)}</p>
           </div>
           ` : ''}
 
           <div>
-            <label class="text-sm font-semibold text-gray-600">Application Date</label>
+            <label class="text-sm font-semibold text-gray-600">${t.applicationDate}</label>
             <p class="mt-1 text-gray-900">${new Date(app.submitted_at).toLocaleString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -850,7 +986,7 @@
 
           ${app.reviewed_at ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Reviewed At</label>
+            <label class="text-sm font-semibold text-gray-600">${t.reviewedAt}</label>
             <p class="mt-1 text-gray-900">${new Date(app.reviewed_at).toLocaleString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -864,27 +1000,27 @@
 
           ${app.reviewed_by ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Reviewed By</label>
+            <label class="text-sm font-semibold text-gray-600">${t.reviewedBy}</label>
             <p class="mt-1 text-gray-900">${app.reviewed_by}</p>
           </div>
           ` : ''}
 
           ${app.rejection_reason ? `
           <div>
-            <label class="text-sm font-semibold text-gray-600">Rejection Reason</label>
+            <label class="text-sm font-semibold text-gray-600">${t.rejectionReason}</label>
             <p class="mt-1 text-gray-900">${app.rejection_reason}</p>
           </div>
           ` : ''}
 
           ${app.status === 'pending' ? `
           <div class="flex gap-4 pt-4 border-t border-gray-200">
-            <button onclick="updateStatus(${app.id}, 'Active', true)" class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2">
+            <button onclick="updateStatus(${app.id}, 'approved', true)" class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center gap-2">
               <i data-lucide="check" style="width: 20px; height: 20px;"></i>
-              Approve
+              ${t.approve}
             </button>
-            <button onclick="updateStatus(${app.id}, 'Rejected', true)" class="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2">
+            <button onclick="updateStatus(${app.id}, 'rejected', true)" class="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition font-semibold flex items-center justify-center gap-2">
               <i data-lucide="x" style="width: 20px; height: 20px;"></i>
-              Reject
+              ${t.reject}
             </button>
           </div>
           ` : ''}
@@ -902,11 +1038,11 @@
 
     // Update application status
     async function updateStatus(id, newStatus, closeModalAfter = true, rejectionReason = null) {
-      const isApprove = newStatus === 'Active';
+      const isApprove = newStatus === 'approved';
 
       // Get rejection reason if rejecting and not provided
       if (!isApprove && !rejectionReason) {
-        rejectionReason = prompt('Please provide a reason for rejection (optional):');
+        rejectionReason = prompt(t.enterRejectionReason);
       }
 
       try {
@@ -923,11 +1059,11 @@
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to update status');
+          throw new Error(errorData.message || t.failedToUpdateStatus);
         }
 
         const result = await response.json();
-        showToast(result.message || 'Status updated successfully!', 'success');
+        showToast(result.message || t.statusUpdated, 'success');
 
         if (closeModalAfter) {
           closeModal();
@@ -935,7 +1071,7 @@
         loadApplications();
       } catch (error) {
         console.error('Error updating status:', error);
-        showToast('Error updating status: ' + error.message, 'error');
+        showToast(t.errorUpdatingStatus + ' ' + error.message, 'error');
       }
     }
 
@@ -960,6 +1096,7 @@
     });
 
     // Initialize
+    applyTranslations();
     lucide.createIcons();
     loadApplications();
   </script>

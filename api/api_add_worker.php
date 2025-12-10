@@ -1,5 +1,8 @@
 <?php
 // api/api_add_worker.php
+// implements the Create operation in the CRUD process. 
+// It receives JSON data from the frontend, validates the input, checks for duplicate workers, and securely inserts a new worker record into the database using prepared statements.
+// If successful, it returns a 201 Created response.
 
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");

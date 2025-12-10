@@ -5,8 +5,15 @@
  * Usage: include 'check_auth.php'; // Before your API logic
  */
 
-// Start session if not already started
+// Start session if not already started with secure configuration
 if (session_status() === PHP_SESSION_NONE) {
+    // Secure session configuration
+    ini_set('session.cookie_httponly', 1);      // Prevent JavaScript access to session cookie
+    ini_set('session.cookie_secure', 0);         // Set to 1 if using HTTPS in production
+    ini_set('session.use_only_cookies', 1);     // Only use cookies for sessions (not URL)
+    ini_set('session.cookie_samesite', 'Strict'); // CSRF protection
+    ini_set('session.use_strict_mode', 1);      // Reject uninitialized session IDs
+    
     session_start();
 }
 
@@ -42,4 +49,15 @@ $_SESSION['last_activity'] = time();
 // Set current user info for logging
 $current_user_id = $_SESSION['admin_user_id'];
 $current_username = $_SESSION['username'];
+
+// If this file is called directly (not included), return success JSON
+if (basename($_SERVER['PHP_SELF']) === 'check_auth.php') {
+    header("Content-Type: application/json; charset=UTF-8");
+    echo json_encode(array(
+        "success" => true,
+        "message" => "Authenticated",
+        "username" => $current_username
+    ));
+    exit();
+}
 ?>

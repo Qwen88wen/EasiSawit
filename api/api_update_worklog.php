@@ -18,8 +18,7 @@ if (
     !isset($data->log_date) ||
     !isset($data->worker_id) ||
     !isset($data->customer_id) ||
-    !isset($data->tons) ||
-    !isset($data->rate_per_ton)
+    !isset($data->tons)
 ) {
     http_response_code(400);
     echo json_encode(array("message" => "Unable to update work log. Incomplete data."));
@@ -34,7 +33,7 @@ $log_date = $data->log_date;
 if ($log_date > $today) {
     http_response_code(400);
     echo json_encode(array(
-        "message" => "操作失败：工作日志日期不能晚于当前日期。",
+        "message" => "Operation failed: Work log date cannot be later than current date.",
         "error" => "FUTURE_DATE_NOT_ALLOWED",
         "log_date" => $log_date,
         "current_date" => $today
@@ -42,17 +41,17 @@ if ($log_date > $today) {
     die();
 }
 
-$sql = "UPDATE work_logs SET log_date = ?, worker_id = ?, customer_id = ?, tons = ?, rate_per_ton = ? WHERE id = ?";
+// Note: rate_per_ton removed for 3NF normalization - now derived from customers.rate
+$sql = "UPDATE work_logs SET log_date = ?, worker_id = ?, customer_id = ?, tons = ? WHERE id = ?";
 
 $stmt = $conn->prepare($sql);
 
 $stmt->bind_param(
-    "siiddi",
+    "siidi",
     $data->log_date,
     $data->worker_id,
     $data->customer_id,
     $data->tons,
-    $data->rate_per_ton,
     $data->id
 );
 

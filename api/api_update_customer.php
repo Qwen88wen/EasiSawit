@@ -13,25 +13,30 @@ include 'db_connect.php';
 
 $data = json_decode(file_get_contents("php://input"));
 
+// Validate required fields
 if (
     !isset($data->id) ||
     !isset($data->name) ||
-    !isset($data->rate) ||
-    !isset($data->remark) ||
-    trim($data->remark) === ''
+    !isset($data->rate)
 ) {
     http_response_code(400);
-    echo json_encode(array("message" => "Unable to update customer. Name, rate, and service area (remark) are required."));
+    echo json_encode(array("message" => "Unable to update customer. Name and rate are required."));
     die();
 }
 
-$contact = isset($data->contact) ? $data->contact : null;
-$acres = isset($data->acres) ? $data->acres : null;
-$remark = trim($data->remark);
-$remark2 = isset($data->remark2) ? trim($data->remark2) : null;
-if ($remark2 === '') {
-    $remark2 = null;
-}
+// Extract and sanitize fields
+$contact = isset($data->contact) && $data->contact !== '' ? $data->contact : null;
+$acres = isset($data->acres) && $data->acres !== '' && $data->acres !== null ? floatval($data->acres) : null;
+$remark = isset($data->remark) ? trim($data->remark) : null;  // Service Area
+$remark2 = isset($data->remark2) ? trim($data->remark2) : null;  // Location
+
+// Empty strings should be NULL
+if ($contact === '') $contact = null;
+if ($remark === '') $remark = null;
+if ($remark2 === '') $remark2 = null;
+
+// Log for debugging
+error_log("[UPDATE CUSTOMER] ID: {$data->id}, Name: {$data->name}, Acres: $acres, Remark: $remark, Remark2: $remark2");
 
 $sql = "UPDATE customers SET name = ?, contact = ?, acres = ?, rate = ?, remark = ?, remark2 = ? WHERE id = ?";
 
